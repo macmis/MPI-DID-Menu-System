@@ -1,0 +1,63 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{% url 'home' %}">MPI DID Main Menu</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarScroll" aria-controls="navbarScroll" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarScroll">
+        <ul class="navbar-nav me-auto my-2 my-lg-0 navbar-nav-scroll" style="--bs-scroll-height: 100px;">
+         
+          {% if user.is_authenticated %} 
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Filters
+              </a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#">Split Screen by Carrier</a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier">Sort by Carrier</a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_pseudoCID">Sort by PseudoCID</a></li>
+                <li><a class="dropdown-item" href="#">Sort by Call Date</a></li>                
+{% comment %}                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_cdate">Sort by Call Date</a></li> {% endcomment %}
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_prdate">Sort by Purchase Date</a></li>
+              </ul>
+            </li>
+
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'DID_OrderForm-1' %}">Create DID Order Form</a>
+            </li>
+
+            
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'Load_DIDOrder' %}">Load DIDs From Carrier</a>
+            </li>
+
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'add_pseudoCID' %}">Add PseudoCID</a>
+            </li>
+
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'delete_pseudoCID' %}">Delete PseudoCID</a>
+            </li>
+ 
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+            </li>
+          </ul>
+            <form class="d-flex" method=POST action="{% url 'Search_Results' %}">
+              {% csrf_token %}
+
+              <input class="form-control me-2" type="search" placeholder="DID/PseudoCID Search" aria-label="Search" name="SearchInput" min=999999999>
+              <button class="btn btn-outline-secondary" type="submit">Search</button>
+            </form>
+          {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'register' %}">Register</a>
+            </li>
+
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'home' %}">Login</a>
+            </li>
+          {% endif %}
+      </div>
+    </div>
+  </nav>

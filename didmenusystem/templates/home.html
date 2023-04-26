@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block content %}
+
+{% if user.is_authenticated %}
+    <table class="table table-striped table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th scope="col">PseudoCID</th>
+                <th scope="col">Client Description</th>
+                <th scope="col">Sales Type</th>
+                <th scope="col">Carrier</th>
+                <th scope="col">Status</th>
+                <th scope="col">Purchase Date</th>
+                <th scope="col">DID Count</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if records %}
+                {% for record in records %}
+                    <tr>
+                        <td><a href="{% url 'pseudoCID' record.PseudoCID %}">{{ record.PseudoCID }}</a></td>
+                        <td>{{ record.Client_Description }}</td> 
+                        <td>{{ record.Sales_Type }}</td> 
+                        <td>{{ record.Carrier }}</td> 
+                        <td>{{ record.Status }}</td> 
+                        <td>{{ record.PR_Date }}</td> 
+                        <td>{{ record.DID_CNT }}</td> 
+                    </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+    {% else %}
+        <div class="col-md-6 offset-md-3">
+            <h1>Login</h1>
+            <br/>
+            <form method="POST" action="{% url 'home' %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <input type="text" class="form-control" name="username", placeholder="Username", required>
+                </div>
+                <br/>
+                <div class="mb-3">
+                    <input type="password" class="form-control", name="password", placeholder="Password", required>
+                </div>
+                <button type="submit" class="btn btn-primary">Login</button>
+            </form>
+        </div>
+{% endif %}
+
+{% endblock %}

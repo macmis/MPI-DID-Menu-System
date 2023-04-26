@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1>Select PseudoCIDs You Wish To Delete</h1>
+<form method="post" action="{% url 'Delete_Results' %}">
+    {% csrf_token %}
+
+    <label for="selected_pseudoCID">Select PseudoCID:</label>
+    <select id="selected_pseudoCID" name="selected_pseudoCID">
+        <option selected disabled="true">-- Select --</option>
+        {% if records %}
+            {% for record in records %}
+                <option value="{{ record.PseudoCID }}">{{ record.PseudoCID }}</option>
+            {% endfor %}
+        {% endif %}
+    </select>
+    <br/><br/>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+{% endblock %}

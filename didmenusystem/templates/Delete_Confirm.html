@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1> Display Selected Deleted PseudoCIDs... </h1>
+
+{% for records in context.client_info %}
+    {{ records.PseudoCID }} <br>
+{% endfor %}
+
+{% endblock %}

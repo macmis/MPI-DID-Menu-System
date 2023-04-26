@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1> DID Order Form - Select Active PseudoCIDs & Enter DID Counts </h1>
+<form method="post" action="{% url 'DID_OrderForm-3' %}">
+    {% csrf_token %}
+
+    <div class="row">
+        <div class="col-md-6">
+            <br><br><br><br>
+            Enter the total number of DID's you would like to order from carrier: <input type="number" name="DIDcnt" size="4" max="9999" min="1" value=0>
+            <br><br><br><br>
+            <label for="selected_pseudoCIDs"></label>
+            <select id="selected_pseudoCIDs" name="selected_pseudoCIDs[]" multiple size="10">
+                <option selected disabled="true">-- Select --</option>
+                {% if pseudo_records %}
+                    {% for record in pseudo_records %}
+                        <option value="{{ record.PseudoCID }} {{ record.Client_Description }}">{{ record.PseudoCID }} - {{ record.Sales_Type }} {{ record.Client_Description }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+        </div>
+    </div>
+
+    <br/><br/>
+    <button type="submit" class="btn btn-primary">Continue</button>
+</form>
+
+{% endblock %}

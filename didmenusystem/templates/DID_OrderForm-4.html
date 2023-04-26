@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block content %}
+
+{% if states %}
+    {% comment %} <link href="roundslider.min.css" rel="stylesheet" /> {% endcomment %}
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <style>
+        .roundslider {
+            display: inline-block;
+        }
+    </style>
+
+    <form method="post" action="{% url 'DID_OrderForm-5' %}">
+        {% csrf_token %}
+
+        <div class="row text-center">
+            <br><br><br><br>
+            <h1> DID Order Form - Select States For DID's </h1>
+            <div class="col-md-3 col-md-offset-2">
+                <select name="from[]" id="undo_redo" class="form-control" size="13" multiple="multiple">
+                    {% for item in states %}
+                        <option value="{{ item.StateAbrv }}">{{ item.StateName}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+                
+            <div class="col-md-2">
+                <button type="button" id="undo_redo_undo" class="btn btn-primary btn-block">undo</button>
+                <button type="button" id="undo_redo_rightAll" class="btn btn-default btn-block"><i class="glyphicon glyphicon-forward"></i></button>
+                <button type="button" id="undo_redo_rightSelected" class="btn btn-default btn-block"><i class="glyphicon glyphicon-chevron-right"></i></button>
+                <button type="button" id="undo_redo_leftSelected" class="btn btn-default btn-block"><i class="glyphicon glyphicon-chevron-left"></i></button>
+                <button type="button" id="undo_redo_leftAll" class="btn btn-default btn-block"><i class="glyphicon glyphicon-backward"></i></button>
+                <button type="button" id="undo_redo_redo" class="btn btn-warning btn-block">redo</button>
+            </div>
+                
+            <div class="col-md-3">
+                <select name="to[]" id="undo_redo_to" class="form-control" size="13" multiple="multiple"></select>
+            </div>
+            <div class="col-12">
+                <br><br><br>
+                <button type="submit" class="btn btn-primary">Continue</button>
+            </div>
+        </div>
+    </form>
+{% else %}
+    <h1> No States Loaded from state table </h1>
+{% endif %}
+
+{% endblock %}
