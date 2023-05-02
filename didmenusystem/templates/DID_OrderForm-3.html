@@ -7,11 +7,13 @@
 
     <div class="row">
         <div class="col-md-6">
-            <br><br><br><br>
+            <br><br>
             Enter the total number of DID's you would like to order from carrier: <input type="number" name="DIDcnt" size="4" max="9999" min="1" value=0>
-            <br><br><br><br>
+            <br><br><br>
+            Select PseudoCIDs you wish to add DID's to:
+            <br>
             <label for="selected_pseudoCIDs"></label>
-            <select id="selected_pseudoCIDs" name="selected_pseudoCIDs[]" multiple size="10">
+            <select id="selected_pseudoCIDs" name="selected_pseudoCIDs[]" multiple size="20">
                 <option selected disabled="true">-- Select --</option>
                 {% if pseudo_records %}
                     {% for record in pseudo_records %}

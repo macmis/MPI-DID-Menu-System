@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1> DID Order Form - Select PseudoCID Type & Carrier: </h1>
+<br/><br/>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<form method="POST" action="{% url 'DID_OrderForm-2a' %}">
+  {% csrf_token %}
+
+  <div class="form-check">
+      <input class="form-check-input" type="radio" name="pseudoCID_options" id="user_option1" value="Replace">
+      <label class="form-check-label" for="user_option1">
+        Replace existing PseudoCID(s)
+      </label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="radio" name="pseudoCID_options" id="user_option2" value="New" checked>
+      <label class="form-check-label" for="user_option2">
+        Creating new PseudoCID(s)
+      </label>
+    </div>
+    <br/>
+    <div class="col-md-6">
+      <label for="color-choice">Select Sales Type 'R' - Residential,   'B' - Business:</label>
+      <input type="radio" name="SalesType_options" id="Residential"  value="R">
+      <label for="Residential">R</label>
+      
+      <input type="radio" name="SalesType_options" id="Business"  value="B">
+      <label for="Business">B</label>
+    </div>
+    <br/><br/><br/><br/>
+    <button type="submit" class="btn btn-primary">Continue</button>
+</form>
+{% endblock %}
