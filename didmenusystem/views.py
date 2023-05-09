@@ -169,7 +169,6 @@ def add_pseudoCID(request):
         return redirect('home')
     
 
-
 # 
 def Create_DIDOrdrForm1(request):
     if request.user.is_authenticated:
@@ -202,14 +201,17 @@ def Create_DIDOrdrForm2(request):
 
         if request.method == 'GET':
             order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
+            #order_pseudo = NewOrderPseudoCID.objects.filter(LeadFileID=request.session.get('LeadFileID')).first()
             filename=order_info.FileName
             CarrierName=order_info.Carrier
             NewOrderForm=order_info.OrderComplete
-
+            #selected_SalesType=order_pseudo.Sales_Type
+            #print(selected_SalesType)
         elif request.method == 'POST':
             # Get PseudoCID type, Sales Type and Carrier
             selected_option = request.POST.get('pseudoCID_options')
             selected_SalesType = request.POST.get('SalesType_options')
+            request.session['SalesType'] = selected_SalesType            
             selected_carrier = request.POST.get('selected_carrier')
             # Create LeadFile Name
             CarrierInfo = selected_carrier.split()
@@ -244,7 +246,7 @@ def Create_DIDOrdrForm2(request):
         )
         order_info.save()
         
-        # Store LeadFileID and FileName in session
+        # Store LeadFileID, and FileName in session
         request.session['LeadFileID'] = LeadFileID
         request.session['OrderFileName'] = filename
         
@@ -275,6 +277,7 @@ def Create_DIDOrdrForm2a(request):
         # Get PseudoCID type, Sales Type and Carrier
         selected_option = request.POST.get('pseudoCID_options')
         selected_SalesType = request.POST.get('SalesType_options')
+        request.session['SalesType'] = selected_SalesType        
         
         if selected_option == "New":
             # Get objects from NEW PseudoCID's table and filter by selected Carrier
@@ -306,7 +309,8 @@ def Create_DIDOrdrForm3(request):
         
         # create a new object of NewOrderPseudoCID model and associate with the NewOrderInfo object            
         selected_pseudoCIDs = request.POST.getlist('selected_pseudoCIDs[]')
-
+        
+        
         # Validate how many PseudoCIDs were selected
         Tot_Sel_PseudoCIDs = len(selected_pseudoCIDs)
         if Tot_Sel_PseudoCIDs < 1:
@@ -320,13 +324,21 @@ def Create_DIDOrdrForm3(request):
 
         for value in selected_pseudoCIDs:
             data = value.split(' ', 1)
-            NewOrderPseudoCID.objects.create(
-                LeadFileID=order_info.LeadFileID,
-                PseudoCID=data[0],
-                Client_Description=data[1],
-                DID_CNT=DIDcnts,
-                order_info=order_info
-            ).save()
+            pseudoCID=data[0]
+            client=data[1]
+            clients = NewClientInfo.objects.filter(Client_Description=client, Sales_Type=request.session.get('SalesType'))
+            for cinfo in clients:
+                NewOrderPseudoCID.objects.create(
+                    LeadFileID=order_info.LeadFileID,
+                    PseudoCID=pseudoCID,
+                    Client_Description=client,
+                    Sales_Type=cinfo.Sales_Type,
+                    Client_Code=cinfo.Client_Code,
+                    PubCode=cinfo.PubCode,
+                    InBnd_TranNo=cinfo.InBnd_TranNo,
+                    DID_CNT=DIDcnts,
+                    order_info=order_info
+                ).save()
 
         states = States.objects.all()
         return render(request, 'DID_OrderForm-4.html', {'states':states})
@@ -339,7 +351,6 @@ def Create_DIDOrdrForm3(request):
 def Create_DIDOrdrForm4(request):
     if request.user.is_authenticated:
         if request.method == 'POST':
-            # Divide this count by number of 'selected_pseudoCIDs'
             Total_DIDs = request.POST.get('DIDcnt')
             
             # retrieve the relevant NewOrderInfo object using LeadFileID
@@ -375,14 +386,19 @@ def Create_DIDOrdrForm4(request):
             client_iter = itertools.cycle(selected_clients)
             for idx, pseudo_cid in enumerate(selected_pseudoCIDs):
                 client_desc = next(client_iter)
-                
-                NewOrderPseudoCID.objects.create(
-                    LeadFileID=order_info.LeadFileID,
-                    PseudoCID=pseudo_cid,
-                    Client_Description=client_desc,
-                    DID_CNT=DIDcnts,
-                    order_info=order_info
-                ).save()
+                clients = NewClientInfo.objects.filter(Client_Description=client_desc, Sales_Type=request.session.get('SalesType'))
+                for cinfo in clients:
+                    NewOrderPseudoCID.objects.create(
+                        LeadFileID=order_info.LeadFileID,
+                        PseudoCID=pseudo_cid,
+                        Client_Description=client_desc,
+                        Sales_Type=cinfo.Sales_Type,
+                        Client_Code=cinfo.Client_Code,
+                        PubCode=cinfo.PubCode,
+                        InBnd_TranNo=cinfo.InBnd_TranNo,
+                        DID_CNT=DIDcnts,
+                        order_info=order_info
+                    ).save()
             
             states = States.objects.all()
             return render(request, 'DID_OrderForm-4.html', {'states':states})
@@ -462,13 +478,14 @@ def DIDOrderFrm_Results(request):
                     state = state_list[x % len(state_list)]
                     data.append({'DID': '', 'State': state, 'PseudoCID': pseudoCID.PseudoCID, 'LeadID': pseudoCID.LeadFileID})
             #  Set Order complete flag to 'N'  --- FOR TESTING ---
-            OI_record.OrderComplete="Y"
+            OI_record.OrderComplete="N"
             OI_record.save()
 
         df = pd.DataFrame(data)
         df.to_excel(FilePath + request.session.get('OrderFileName') + ".xlsx", index=False)
 
         #  Perform a process to remove PseudoCID's from `NewPseudoCID` and add record(s) to `ClientInfo`
+        #  Process should compare `NewPseudoCID` vs `NewOrderInfo` if PseudoCID in both remove from `NewPseudoCID`
 
         OrderFormFile=FilePath+request.session.get('OrderFileName')+".xlsx"
         return render(request, 'DIDOrderForm_Results.html', {'OrderFormFile':OrderFormFile})
@@ -491,6 +508,33 @@ def GetDID_OrderFormInfo(request):
 
 def Load_DIDOrder(request):
     if request.user.is_authenticated:
+        if request.method == 'POST' and request.FILES['excel_file']:
+            try:
+                # Load Carrier Excel Order Form into Pandas DataFrame
+                excel_file = request.FILES['excel_file']
+                df = pd.read_excel(excel_file, usecols=['DID', 'State', 'PseudoCID', 'LeadID'])
+                required_columns = set(['DID', 'State', 'PseudoCID', 'LeadID'])
+                file_columns = set(df.columns)
+                if not required_columns.issubset(file_columns):
+                    raise ValueError('Columns do not match')
+
+                # Retrieve NewOrderInfo by LeadFileID
+                LeadF_ID = df['LeadID'].unique()
+                for LF_ID in LeadF_ID:
+                    NO_Info = NewOrderInfo.objects.filter(LeadFileID=LF_ID).first()
+
+                    # Retrieve NewOrderPseudoCID by LeadFileID and Client_Description
+                    NO_PseudoCIDs = NewOrderPseudoCID.objects.filter(LeadFileID=LF_ID)
+                    #for idx in NO_PseudoCIDs:
+                        #print(idx.LeadFileID, idx.PseudoCID, idx.Client_Description, idx.DID_CNT, NO_Info.Carrier, NO_Info.PR_Date, NO_Info.FileName)
+                
+                messages.success(request, 'Data uploaded successfully')
+                return redirect('home')
+                
+            except Exception as e:
+                messages.error(request, f'Error while uploading data: {str(e)}')                
+                return redirect('home')
+            
         return render(request, 'Load_DIDOrder.html', {})
     else:
         messages.success(request, "Must be logged in...")

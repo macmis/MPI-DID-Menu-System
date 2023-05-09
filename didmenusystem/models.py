@@ -111,7 +111,7 @@ class NewOrderInfo(models.Model):
     Total_DID_CNT = models.IntegerField(default=0, blank=True, null=True)
     Sel_States = models.CharField(max_length=160)
     PR_Date = models.DateField(blank=True)
-    FileName = models.CharField(max_length=20, blank=True)
+    FileName = models.CharField(max_length=25, blank=True)
     OrderComplete = models.CharField(max_length=1, choices=YES_NO_CHOICES, default='P') 
        
     def __str__(self):
@@ -123,11 +123,15 @@ class NewOrderPseudoCID(models.Model):
     LeadFileID = models.CharField(max_length=30, null=True)
     PseudoCID =  models.CharField(max_length=10)    
     Client_Description = models.CharField(max_length=60)
+    Sales_Type = models.CharField(max_length=1, null=True)    
+    Client_Code = models.CharField(max_length=8, null=True)
+    PubCode = models.CharField(max_length=4, blank=True)
+    InBnd_TranNo =  models.CharField(max_length=10, null=True)
     DID_CNT = models.IntegerField(default=0, blank=True, null=True)
     order_info = models.ForeignKey(NewOrderInfo, on_delete=models.CASCADE, related_name='pseudo_cids', null=True, default=None)
         
     def __str__(self):
-        return(f"{self.LeadFileID} {self.PseudoCID} {self.Client_Description}")
+        return(f"{self.LeadFileID} {self.PseudoCID} {self.Client_Description} {self.Sales_Type} {self.Client_Code} {self.PubCode} {self.InBnd_TranNo}")
 
 
 # List of Active Clients to assign to NEW PseudoCIDs
