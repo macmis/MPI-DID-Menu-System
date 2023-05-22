@@ -10,6 +10,7 @@ urlpatterns = [
     path('delete_pseudoCID/', views.delete_pseudoCID, name='delete_pseudoCID'),
     path('Delete_Results/', views.delete_results, name='Delete_Results'),
     path('Delete_Confirm/', views.delete_confirm, name='Delete_Confirm'),
+    path('Create_PseudoFile/', views.Create_PseudoFile, name='Create_PseudoFile'),
     path('add_pseudoCID/', views.add_pseudoCID, name='add_pseudoCID'),
     path('DID_OrderForm-1/', views.Create_DIDOrdrForm1, name='DID_OrderForm-1'),
     path('DID_OrderForm-1a/', views.Create_DIDOrdrForm1a, name='DID_OrderForm-1a'),    
@@ -23,6 +24,8 @@ urlpatterns = [
     path('DIDOrderFrm_Results/', views.DIDOrderFrm_Results, name='DIDOrderForm_Results'),
     path('Load_DIDOrder/', views.Load_DIDOrder, name='Load_DIDOrder'),
     path('Search_Results/', views.SearchResults, name='Search_Results'),
-    # Test function used to review and test `form`. Remove once testing complete
-    path('addnew/', views.addnew, name='addnew'),
+    path('Reset_InActives/', views.ResetInActives, name='Reset_InActives'),
+
+    # # Test function used to review and test `form`. Remove once testing complete
+    # path('addnew/', views.addnew, name='addnew'),
 ]

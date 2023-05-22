@@ -1,10 +1,42 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h1> Display Selected Deleted PseudoCIDs... </h1>
+<h1> DID Menu System - Create PseudoCID files </h1>
+<br><br>
+<p> Create "PseudoCID Delete Files" for the following? </p>
+<form method="post" action="{% url 'Create_PseudoFile' %}">
+    {% csrf_token %}
 
-{% for records in context.client_info %}
-    {{ records.PseudoCID }} <br>
-{% endfor %}
+    {% for record in client_info %}
+        <input type="hidden" name="selected_pseudoCID" value="{{ record.PseudoCID }}">
+        <input type="hidden" name="selected_leadFileID" value="{{ record.LeadFileID }}">        
+    {% endfor %}
+    
+    <table class="table table-striped table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th scope="col">PseudoCID</th>
+                <th scope="col">Client Description</th>
+                <th scope="col">Total DID's</th>
+                <th scope="col">Carrier</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if client_info %}
+                {% for record in client_info %}
+                    <tr>            
+                        <td>{{ record.PseudoCID }}</td>
+                        <td>{{ record.Client_Description }}</td>
+                        <td>{{ record.DID_CNT }}</td>                    
+                        <td>{{ record.Carrier }}</td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+    <a href="{% url 'home' %}" class="btn btn-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">Create/Download PseudoCID File</button>
+    <a href="{% url 'home' %}" class="btn btn-secondary">Finish</a>    
+</form>
 
 {% endblock %}

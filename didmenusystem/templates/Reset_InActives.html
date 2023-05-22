@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1> DID Menu System - PseudoCIDs have been reset to "Active" </h1>
+<br><br>
+
+<table class="table table-striped table-hover table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th scope="col">PseudoCID</th>
+            <th scope="col">Client Description</th>            
+            <th scope="col">Client Code</th>            
+            <th scope="col">PubCode</th>            
+            <th scope="col">Sales Type</th>            
+            <th scope="col">In-Bound Transition No.</th>
+            <th scope="col">Carrier</th>            
+            <th scope="col">PR Status</th>            
+        </tr>
+    </thead>
+    <tbody>
+        {% if client_info_inactive %}
+            {% for record in client_info_inactive %}
+                <tr>
+                    <td>{{ record.PseudoCID }}</td>
+                    <td>{{ record.Client_Description }}</td>                     
+                    <td>{{ record.Client_Code }}</td>                     
+                    <td>{{ record.PubCode }}</td>                     
+                    <td>{{ record.Sales_Type }}</td>                     
+                    <td>{{ record.InBnd_TranNo }}</td>
+                    <td>{{ record.Carrier }}</td>                     
+                    <td>{{ record.Status }}</td> 
+                </tr>
+            {% endfor %}
+        {% endif %}
+    </tbody>
+</table>
+<br/><br/>
+<a href="{% url 'home' %}" class="btn btn-secondary">Back</a>
+
+{% endblock %}

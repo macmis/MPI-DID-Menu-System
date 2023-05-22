@@ -27,7 +27,7 @@ class ClientInfo(models.Model):
     STATUS_CHOICES = (
         ('ACTIVE', 'Active'),
         ('PENDING', 'Pending'),
-        ('DELETE', 'Delete'),
+        ('INACTIVE', 'In-Active'),
     )
     PseudoCID = models.CharField(max_length=10)
     Client_Description = models.CharField(max_length=60)
@@ -37,15 +37,17 @@ class ClientInfo(models.Model):
     VoiceMail = models.CharField(max_length=4)
     InBnd_TranNo =  models.CharField(max_length=10)
     Carrier = models.CharField(max_length=30)
-    Status = models.CharField(max_length=7, choices=STATUS_CHOICES, default='Pending')
-    PR_Date = models.DateField(blank=True)
-    LastUse_Date = models.DateField(blank=True, null=True)
+    Status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Pending')
+    PR_Date = models.DateField(blank=True, null=True)
+    LastUse_Date = models.DateField(blank=True, null=True, default='')
     DID_CNT = models.IntegerField(default=0, blank=True, null=True)
     LeadFileID = models.CharField(max_length=30, blank=True, null=True)
-    Notes = models.CharField(max_length=60, blank=True, null=True)
+    Notes = models.CharField(max_length=60, blank=True, null=True, default='')
     
     class Meta:
         db_table = 'ClientInfo'
+        # Define the composite primary key --- Use line below when commented out Reference for ForeignKey in `ClientPseudoCID` is working
+        #unique_together = ('PseudoCID', 'LeadFileID')        
 
     # Function - Count the number of records in ClientPseudoCID for this PseudoCID
     def update_did_cnt(self):
@@ -61,13 +63,20 @@ class ClientInfo(models.Model):
 
 # List of all PseudoCIDs and DIDs within. Linked with 'PseudoFile'
 class ClientPseudoCID(models.Model):
+    STATUS_CHOICES = (
+        ('ACTIVE', 'Active'),
+        ('PENDING', 'Pending'),
+        ('INACTIVE', 'In-Active'),
+    )
     PseudoCID = models.CharField(max_length=10)
     PhoneNo =  models.CharField(max_length=10)
     PhnNo_Loc = models.CharField(max_length=2)
-    Status = models.CharField(max_length=1)
+    Status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Pending')    
     LeadFileID = models.CharField(max_length=30, null=True)
-    Deact_Date = models.DateField(blank=True)
-    # Define a foreign key to ClientInfo table based on PseudoCID field
+    Deact_Date = models.DateField(blank=True, null=True, default='')
+
+    # Reference the composite primary key of ClientInfo model    
+    #client_info = models.ForeignKey(ClientInfo, on_delete=models.CASCADE, related_name='client_pseudocids', to_field=['LeadFileID', 'PseudoCID'], null=True, default=None)    
     client_info = models.ForeignKey(ClientInfo, on_delete=models.CASCADE, related_name='client_pseudocids', null=True, default=None)
     
     def __str__(self):
@@ -93,11 +102,15 @@ class PseudoFile(models.Model):
     InBnd_TranNo = models.CharField(max_length=10)
     Action = models.CharField(max_length=11, choices=ACTION_CHOICES, default='DELETE')
     LeadFileID = models.CharField(max_length=30, null=True)
+    FileName = models.CharField(max_length=25, blank=True)
     Deact_Date = models.DateField(blank=True)
     OkToArchive = models.CharField(max_length=1, choices=YES_NO_CHOICES, default='N')
     # Define a foreign key to ClientPseudoCID table based on PseudoCID field
     client_pseudocid = models.ForeignKey(ClientPseudoCID, on_delete=models.CASCADE, related_name='pseudo_files', null=True, default=None)
-    
+
+    def __str__(self):
+        return(f"{self.PseudoCID} {self.PhoneNo} {self.Client_Code} {self.InBnd_TranNo} {self.Action} {self.LeadFileID} {self.Deact_Date} {self.OkToArchive}")
+
 
 # Infomation used to create new order form.  Linked with 'NewOrderPseudoCID'
 class NewOrderInfo(models.Model):
@@ -127,11 +140,12 @@ class NewOrderPseudoCID(models.Model):
     Client_Code = models.CharField(max_length=8, null=True)
     PubCode = models.CharField(max_length=4, blank=True)
     InBnd_TranNo =  models.CharField(max_length=10, null=True)
+    VoiceMail = models.CharField(max_length=4, null=True)
     DID_CNT = models.IntegerField(default=0, blank=True, null=True)
     order_info = models.ForeignKey(NewOrderInfo, on_delete=models.CASCADE, related_name='pseudo_cids', null=True, default=None)
         
     def __str__(self):
-        return(f"{self.LeadFileID} {self.PseudoCID} {self.Client_Description} {self.Sales_Type} {self.Client_Code} {self.PubCode} {self.InBnd_TranNo}")
+        return(f"{self.LeadFileID} {self.PseudoCID} {self.Client_Description} {self.Sales_Type} {self.Client_Code} {self.PubCode} {self.InBnd_TranNo} {self.VoiceMail}")
 
 
 # List of Active Clients to assign to NEW PseudoCIDs
@@ -141,9 +155,10 @@ class NewClientInfo(models.Model):
     Client_Code = models.CharField(max_length=8)
     PubCode = models.CharField(max_length=4, blank=True)
     InBnd_TranNo =  models.CharField(max_length=10)
+    VoiceMail = models.CharField(max_length=4, null=True)    
         
     def __str__(self):
-        return(f"{self.Client_Description} {self.Sales_Type} {self.Client_Code} {self.PubCode} {self.InBnd_TranNo}")
+        return(f"{self.Client_Description} {self.Sales_Type} {self.Client_Code} {self.PubCode} {self.InBnd_TranNo} {self.VoiceMail}")
 
 
 # Unassigned PseudoCID's 

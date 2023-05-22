@@ -1,14 +1,16 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
-from django.db.models import Count, F
+from django.db.models import Count
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
+from django.http import HttpResponse
 from .forms import SignUpForm, AddPseudoCIDForm, NewOrderInfoForm, NewOrderPseudoCIDForm
 from datetime import datetime
 from .models import PhoneRecord, States, Carrier, ClientInfo, ClientPseudoCID, PseudoFile, NewOrderInfo, NewOrderPseudoCID, NewPseudoCID, NewClientInfo
 import uuid, itertools
 import pandas as pd
+import csv
 
 # Create your views here.
 def home(request):
@@ -100,19 +102,21 @@ def delete_pseudoCID(request):
 def delete_results(request):
     if request.user.is_authenticated:
         if request.method == 'POST':
-            selected_pseudoCIDs = request.POST.getlist('selected_pseudoCIDs')
-            #print(selected_pseudoCIDs)
-            #if selected_pseudoCIDs:
-            #    client_pseudocids = ClientPseudoCID.objects.filter(PseudoCID=selected_pseudoCIDs)
-            #    client_info = ClientInfo.objects.filter(PseudoCID=selected_pseudoCIDs).first()
-            #    context = {
-            #        'client_pseudocids' : client_pseudocids,
-            #        'client_info' : client_info,
-            #    }
-            #    return render(request, 'Delete_Results.html', {'context':context})
-            #else:
-            #    messages.success(request, "No PseudoCID was selected...")
-            #    return redirect('home')
+            selected_pseudoCIDs = request.POST.getlist('selected_pseudoCID[]')
+
+            # Validate how many PseudoCIDs were selected
+            Tot_Sel_PseudoCIDs = len(selected_pseudoCIDs)
+            if(Tot_Sel_PseudoCIDs < 1):
+                messages.success(request, "No PseudoCIDs were selected!!  Please try again...")
+                return redirect('home')
+
+            client_info = []
+            for value in selected_pseudoCIDs:
+                data = value.split(' ', 1)
+                pseudoCID=data[0]
+                client_info.extend(ClientInfo.objects.filter(PseudoCID=pseudoCID))
+
+            return render(request, 'Delete_Results.html', {'client_info':client_info})
         else:
             messages.success(request, "This view only accepts POST request.")
             return redirect('home')
@@ -124,24 +128,46 @@ def delete_results(request):
 def delete_confirm(request):
     if request.user.is_authenticated:
         if request.method == 'POST':
-            selected_pseudoCID = request.POST.get('selected_pseudoCID')
-            if selected_pseudoCID:
-                client_pseudocids = ClientPseudoCID.objects.filter(PseudoCID=selected_pseudoCID)
-                client_info = ClientInfo.objects.filter(PseudoCID=selected_pseudoCID).first()
+            selected_pseudoCIDs = request.POST.getlist('selected_pseudoCID')
+            # Use this filter along with pseudoCID once ALL LeadFileID records have been updated
+            selected_leadFileIDs = request.POST.getlist('selected_leadFileID')            
+
+            if selected_pseudoCIDs:
+                client_info = []
+                client_pseudocids = []                
+                for pseudoCID in selected_pseudoCIDs:
+                    client_info_queryset = ClientInfo.objects.filter(PseudoCID=pseudoCID)
+                    client_info_queryset.update(Status = 'In-Active')
+                    client_info.extend(client_info_queryset)
+                    
+                    client_pseudocids_queryset = ClientPseudoCID.objects.filter(PseudoCID=pseudoCID)
+                    client_pseudocids_queryset.update(Status = 'In-Active')
+                    client_pseudocids.extend(client_pseudocids_queryset)
+
                 context = {
                     'client_pseudocids' : client_pseudocids,
                     'client_info' : client_info,
                 }
-                #for record in Del_PseudoResults:
-                #    PseudoFile.objects.create(
-                #        PseudoCID=record.PseudoCID,
-                #        PhoneNo=record.PhoneNo,
-                #        ClientCode=record.ClientCode
-                #        
-                #    )
-                return render(request, 'Delete_Confirm.html', {'context':context})
+
+                # Create new oject of PseudoFile model
+                for cinfo in context['client_info']:
+                    for cpseudocid in context['client_pseudocids']:
+                        if cinfo.PseudoCID == cpseudocid.PseudoCID:
+                            PseudoFile_Record = PseudoFile(
+                                PseudoCID=cpseudocid.PseudoCID,
+                                PhoneNo=cpseudocid.PhoneNo,
+                                Client_Code=cinfo.Client_Code,
+                                InBnd_TranNo=cinfo.InBnd_TranNo,
+                                Action='DELETE',
+                                LeadFileID=cpseudocid.LeadFileID,
+                                Deact_Date=datetime.now().date(),
+                                OkToArchive='NO'
+                            )
+                            PseudoFile_Record.save()
+
+                return render(request, 'Delete_Confirm.html', {'client_info':client_info})
             else:
-                messages.success(request, "No PseudoCID was selected...")
+                messages.success(request, "No PseudoCIDs were returned...")
                 return redirect('home')
         else:
             messages.success(request, "This view only accepts POST request.")
@@ -150,6 +176,61 @@ def delete_confirm(request):
         messages.success(request, "Must be logged in...")
         return redirect('home')
 
+
+def Create_PseudoFile(request):
+    if request.user.is_authenticated:
+        if request.method == 'POST':
+            # Create PseudoCID Delete file name
+            curetime = datetime.now()            
+            etime = curetime.strftime("%Y%m%d%S")
+            fetime = etime[:8] + "-" + etime[8:]
+            
+            selected_pseudoCIDs = request.POST.getlist('selected_pseudoCID')
+            # Use this filter along with pseudoCID once ALL LeadFileID records have been updated
+            selected_leadFileIDs = request.POST.getlist('selected_leadFileID')
+            if selected_pseudoCIDs:
+                PseudoFile_info = []
+                for pseudoCID in selected_pseudoCIDs:
+                    filename = "PSF-"
+                    PseudoFile_info_queryset = PseudoFile.objects.filter(PseudoCID=pseudoCID)
+                    PseudoFile_info_queryset.update(OkToArchive = 'Y')
+                    action = PseudoFile_info_queryset.values_list('Action', flat=True).first()                
+                    filename = filename + action[:3] + "_" + fetime + ".csv"
+                    PseudoFile_info_queryset.update(FileName = filename)
+                    PseudoFile_info.extend(PseudoFile_info_queryset)
+                
+                #Get File Name for csv file
+                data = PseudoFile_info[0]
+                filename = data.FileName
+
+                # Create a response object with appropriate CSV headers
+                response = HttpResponse(content_type='text/csv')
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                
+                # Create CSV writer using the response object
+                writer = csv.writer(response)
+
+                # Write the headers to the CSV file
+                writer.writerow(['pseudocid', 'cidnumber', 'cname', 'trixnumber', 'action'])
+
+                for record in PseudoFile_info:
+                    writer.writerow([record.PseudoCID, record.PhoneNo, record.Client_Code, record.InBnd_TranNo, record.Action])
+
+                messages.success(request, "File has been downloaded - Check local PC 'downloads' folder")
+                return response
+                        
+                # Delete Records from `ClientInfo` and `ClientPseudoCID`
+                # Then figure out process to add available PseudoCID's to NewClientInfo models
+            else:
+                messages.success(request, "No PseudoCIDs were returned...")
+                return redirect('home')
+        else:
+            messages.success(request, "This view only accepts POST request.")
+            return redirect('home')
+    else:
+        messages.success(request, "Must be logged in...")
+        return redirect('home')
+    
     
 def add_pseudoCID(request):
     form = AddPseudoCIDForm(request.POST or None)
@@ -172,7 +253,6 @@ def add_pseudoCID(request):
 # 
 def Create_DIDOrdrForm1(request):
     if request.user.is_authenticated:
-
         # Clean incomplete Order Form records
         order_info = NewOrderInfo.objects.filter(OrderComplete="N")
         for record in order_info:
@@ -201,12 +281,9 @@ def Create_DIDOrdrForm2(request):
 
         if request.method == 'GET':
             order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
-            #order_pseudo = NewOrderPseudoCID.objects.filter(LeadFileID=request.session.get('LeadFileID')).first()
             filename=order_info.FileName
             CarrierName=order_info.Carrier
             NewOrderForm=order_info.OrderComplete
-            #selected_SalesType=order_pseudo.Sales_Type
-            #print(selected_SalesType)
         elif request.method == 'POST':
             # Get PseudoCID type, Sales Type and Carrier
             selected_option = request.POST.get('pseudoCID_options')
@@ -310,7 +387,6 @@ def Create_DIDOrdrForm3(request):
         # create a new object of NewOrderPseudoCID model and associate with the NewOrderInfo object            
         selected_pseudoCIDs = request.POST.getlist('selected_pseudoCIDs[]')
         
-        
         # Validate how many PseudoCIDs were selected
         Tot_Sel_PseudoCIDs = len(selected_pseudoCIDs)
         if Tot_Sel_PseudoCIDs < 1:
@@ -327,6 +403,7 @@ def Create_DIDOrdrForm3(request):
             pseudoCID=data[0]
             client=data[1]
             clients = NewClientInfo.objects.filter(Client_Description=client, Sales_Type=request.session.get('SalesType'))
+
             for cinfo in clients:
                 NewOrderPseudoCID.objects.create(
                     LeadFileID=order_info.LeadFileID,
@@ -336,6 +413,7 @@ def Create_DIDOrdrForm3(request):
                     Client_Code=cinfo.Client_Code,
                     PubCode=cinfo.PubCode,
                     InBnd_TranNo=cinfo.InBnd_TranNo,
+                    VoiceMail=cinfo.VoiceMail,
                     DID_CNT=DIDcnts,
                     order_info=order_info
                 ).save()
@@ -363,7 +441,7 @@ def Create_DIDOrdrForm4(request):
             # create a new object of NewOrderPseudoCID model and associate with the NewOrderInfo object            
             selected_pseudoCIDs = request.POST.getlist('selected_pseudoCIDs[]')
             selected_clients = request.POST.getlist('selected_clients[]')
-            
+                        
             # Validate how many PseudoCIDs and Clients were selected
             Tot_Sel_PseudoCIDs = len(selected_pseudoCIDs)
             Tot_Sel_Clients = len(selected_clients)
@@ -396,6 +474,7 @@ def Create_DIDOrdrForm4(request):
                         Client_Code=cinfo.Client_Code,
                         PubCode=cinfo.PubCode,
                         InBnd_TranNo=cinfo.InBnd_TranNo,
+                        VoiceMail=cinfo.VoiceMail,
                         DID_CNT=DIDcnts,
                         order_info=order_info
                     ).save()
@@ -429,6 +508,7 @@ def Create_DIDOrdrForm5(request):
             state_string = ",".join(selected_states)            
             order_info.Sel_States = state_string
             order_info.save()
+                
             return render(request, 'DID_OrderForm-5.html', {'order_info':order_info, 'order_pseudoCIDs':order_pseudoCIDs})
         else:
             messages.success(request, "This view only accepts POST request.")
@@ -466,9 +546,14 @@ def DID_OrderForm(request):
 def DIDOrderFrm_Results(request):
     if request.user.is_authenticated:
         data = []
-        FilePath="C:\Python Development Working Folder\\New Order Forms\\"        
+        FilePath="C:\Python Development Working Folder\\New Order Forms\\"
+        # New -- This method automatically downloads file to local PC
+        #file_name = request.session.get('OrderFileName') + ".xlsx"
+        #file_path = FilePath + file_name
 
         # Retrieve the relevant NewOrderInfo & NewOrderPseudoCID objects using New Order Info File Name & LeadFileID
+        # New -- This method automatically downloads file to local PC
+        #order_info = NewOrderInfo.objects.filter(FileName=file_name)        
         order_info = NewOrderInfo.objects.filter(FileName=request.session.get('OrderFileName'))
         for OI_record in order_info:
             order_pseudoCIDs = NewOrderPseudoCID.objects.filter(LeadFileID=OI_record.LeadFileID)            
@@ -482,11 +567,19 @@ def DIDOrderFrm_Results(request):
             OI_record.save()
 
         df = pd.DataFrame(data)
+        # New -- This method automatically downloads file to local PC
+        # excel_file = io.BytesIO()
+        # df.to_excel(excel_file, index=False)
+        # response = HttpResponse(excel_file.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        # response['Content-Disposition'] = 'attachment; filename=' + file_name        
+        # ---------------------
+        
+        # Download file to local PC with provided filename and path
         df.to_excel(FilePath + request.session.get('OrderFileName') + ".xlsx", index=False)
 
         #  Perform a process to remove PseudoCID's from `NewPseudoCID` and add record(s) to `ClientInfo`
         #  Process should compare `NewPseudoCID` vs `NewOrderInfo` if PseudoCID in both remove from `NewPseudoCID`
-
+        
         OrderFormFile=FilePath+request.session.get('OrderFileName')+".xlsx"
         return render(request, 'DIDOrderForm_Results.html', {'OrderFormFile':OrderFormFile})
     else:
@@ -521,13 +614,44 @@ def Load_DIDOrder(request):
                 # Retrieve NewOrderInfo by LeadFileID
                 LeadF_ID = df['LeadID'].unique()
                 for LF_ID in LeadF_ID:
+                    # Retrieve NewOrderInfo by LeadFileID
                     NO_Info = NewOrderInfo.objects.filter(LeadFileID=LF_ID).first()
 
-                    # Retrieve NewOrderPseudoCID by LeadFileID and Client_Description
+                    # Retrieve NewOrderPseudoCID by LeadFileID
                     NO_PseudoCIDs = NewOrderPseudoCID.objects.filter(LeadFileID=LF_ID)
-                    #for idx in NO_PseudoCIDs:
-                        #print(idx.LeadFileID, idx.PseudoCID, idx.Client_Description, idx.DID_CNT, NO_Info.Carrier, NO_Info.PR_Date, NO_Info.FileName)
-                
+
+                    for data in NO_PseudoCIDs:
+                        # Add records to ClientInfo Model
+                        ClientInfo.objects.create(
+                            PseudoCID=data.PseudoCID,
+                            Client_Description=data.Client_Description,                            
+                            Client_Code=data.Client_Code,
+                            PubCode=data.PubCode,                            
+                            Sales_Type=data.Sales_Type,
+                            VoiceMail=data.VoiceMail,                            
+                            InBnd_TranNo=data.InBnd_TranNo,
+                            Carrier=NO_Info.Carrier,                            
+                            Status='Pending',
+                            PR_Date=NO_Info.PR_Date,
+                            LastUse_Date=None,
+                            DID_CNT=NO_Info.Total_DID_CNT,                            
+                            LeadFileID=NO_Info.LeadFileID,
+                            Notes=' '
+                        ).save()
+                        
+                        # Retrieve records from DataFrame on matching PseudoCID's
+                        df['PseudoCID'] = df['PseudoCID'].astype(str)
+                        df_matching_PseudoCID = df.loc[df['PseudoCID'].str.strip() == data.PseudoCID]
+                        for idx, row in df_matching_PseudoCID.iterrows():
+                            ClientPseudoCID.objects.create(
+                                PseudoCID=row['PseudoCID'],
+                                PhoneNo=row['DID'],
+                                PhnNo_Loc=row['State'],
+                                Status='Pending',
+                                LeadFileID=row['LeadID'],
+                                Deact_Date=None
+                            ).save()
+
                 messages.success(request, 'Data uploaded successfully')
                 return redirect('home')
                 
@@ -573,20 +697,37 @@ def SearchResults(request):
         return redirect('home')
 
 
-# Test function used to review and test `form`. Remove once testing complete
-def addnew(request):
+def ResetInActives(request):
     if request.user.is_authenticated:
-        if request.method == "POST":
-            formset = NewOrderInfoForm(request.POST)
-            if formset.is_valid():
-                formset.save()
-                messages.success(request, "Data has been saved to database.")
-                return redirect('home')
-            
-        else:
-            formset = NewOrderInfoForm()            
+        # Fetch the "PENDING" records
+        #client_info_pending = ClientInfo.objects.filter(Status="PENDING")
+        client_info_inactive = ClientInfo.objects.filter(Status="In-Active")        
+        
+        # Reset all "In-Active" records to "Active"
+        updated_records = ClientInfo.objects.filter(Status="In-Active").update(Status='Active')
 
-        return render(request, 'addnew.html', {'formset':formset})
+        #print(record.PseudoCID, record.Status)
+        return render(request, 'Reset_InActives.html', {'client_info_inactive': client_info_inactive, 'updated_records': updated_records})
     else:
         messages.success(request, "Must be logged in...")
         return redirect('home')
+
+
+
+# # Test function used to review and test `form`. Remove once testing complete
+# def addnew(request):
+#     if request.user.is_authenticated:
+#         if request.method == "POST":
+#             formset = NewOrderInfoForm(request.POST)
+#             if formset.is_valid():
+#                 formset.save()
+#                 messages.success(request, "Data has been saved to database.")
+#                 return redirect('home')
+            
+#         else:
+#             formset = NewOrderInfoForm()            
+
+#         return render(request, 'addnew.html', {'formset':formset})
+#     else:
+#         messages.success(request, "Must be logged in...")
+#         return redirect('home')

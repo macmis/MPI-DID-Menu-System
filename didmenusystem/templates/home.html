@@ -17,15 +17,17 @@
         <tbody>
             {% if records %}
                 {% for record in records %}
-                    <tr>
-                        <td><a href="{% url 'pseudoCID' record.PseudoCID %}">{{ record.PseudoCID }}</a></td>
-                        <td>{{ record.Client_Description }}</td> 
-                        <td>{{ record.Sales_Type }}</td> 
-                        <td>{{ record.Carrier }}</td> 
-                        <td>{{ record.Status }}</td> 
-                        <td>{{ record.PR_Date }}</td> 
-                        <td>{{ record.DID_CNT }}</td> 
-                    </tr>
+                    {% if record.Status == "Active" %}                
+                        <tr>
+                            <td><a href="{% url 'pseudoCID' record.PseudoCID %}">{{ record.PseudoCID }}</a></td>
+                            <td>{{ record.Client_Description }}</td> 
+                            <td>{{ record.Sales_Type }}</td> 
+                            <td>{{ record.Carrier }}</td> 
+                            <td>{{ record.Status }}</td> 
+                            <td>{{ record.PR_Date }}</td> 
+                            <td>{{ record.DID_CNT }}</td> 
+                        </tr>
+                    {% endif %}                    
                 {% endfor %}
             {% endif %}
         </tbody>
