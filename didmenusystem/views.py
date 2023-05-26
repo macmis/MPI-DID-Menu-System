@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from .forms import SignUpForm, AddPseudoCIDForm, NewOrderInfoForm, NewOrderPseudoCIDForm
 from datetime import datetime
 from .models import PhoneRecord, States, Carrier, ClientInfo, ClientPseudoCID, PseudoFile, NewOrderInfo, NewOrderPseudoCID, NewPseudoCID, NewClientInfo
+from io import BytesIO
 import uuid, itertools
 import pandas as pd
 import csv
@@ -17,22 +18,64 @@ def home(request):
     # Get list of Client Info and udpate DID counts for each Client
     client_info_list = ClientInfo.objects.all()
     
+    # Update DID count by actual number of DID's per PseudoCID
     for client_info in client_info_list:
         client_info.update_did_cnt()
 
      # Get selected filter
     sort_option = request.GET.get('sort')
-
+    
     # Check if sort option was selected
     if sort_option:
-        if sort_option == 'sort_by_carrier':
-            client_info_list = client_info_list.order_by('Carrier')
-        elif sort_option == 'sort_by_pseudoCID':
-            client_info_list = client_info_list.order_by('PseudoCID')
-        elif sort_option == 'sort_by_prdate':
-            client_info_list = client_info_list.order_by('PR_Date')
+        filter_selection = sort_option[:16]
+        if filter_selection == "split_by_carrier":
+            # Only 2 Carriers reside in model `Carrier` - MODIFY CODE IF NUMBER OF SIP CARRIERS INCREASE
+            carrier_info_list = Carrier.objects.all()
+
+            # Get values for each recrod in `carrier_info_list` and assign to variables: Carrier-1, Carrier-2
+            carrier1 = carrier_info_list[0] if len(carrier_info_list) >= 1 else None
+            carrier2 = carrier_info_list[1] if len(carrier_info_list) >= 2 else None
             
-    records = client_info_list.values('PseudoCID', 'Client_Description', 'Sales_Type', 'Carrier', 'Status', 'PR_Date', 'DID_CNT')
+            # Perform filters by user selection
+            if sort_option == "split_by_carrier_All":
+                client_info_list1 = ClientInfo.objects.filter(Carrier=carrier1.CarrierName)            
+                client_info_list2 = ClientInfo.objects.filter(Carrier=carrier2.CarrierName)
+            elif sort_option == "split_by_carrier_Res":
+                client_info_list1 = ClientInfo.objects.filter(Carrier=carrier1.CarrierName, Sales_Type="R")            
+                client_info_list2 = ClientInfo.objects.filter(Carrier=carrier2.CarrierName, Sales_Type="R")
+            elif sort_option == "split_by_carrier_Bus":
+                client_info_list1 = ClientInfo.objects.filter(Carrier=carrier1.CarrierName, Sales_Type="B")
+                client_info_list2 = ClientInfo.objects.filter(Carrier=carrier2.CarrierName, Sales_Type="B")
+                
+            records_carrier1 = client_info_list1.values('PseudoCID', 'Client_Description', 'Sales_Type', 'LastUse_Date', 'PR_Date', 'DID_CNT', 'Carrier')
+            records_carrier2 = client_info_list2.values('PseudoCID', 'Client_Description', 'Sales_Type', 'LastUse_Date', 'PR_Date', 'DID_CNT', 'Carrier')
+            records = None
+
+        else:
+            filter_selection = sort_option
+            if filter_selection == 'sort_by_carrier_All':
+                client_info_list = client_info_list.order_by('Carrier')
+            elif filter_selection == 'sort_by_carrier_Res':
+                client_info_list = client_info_list.filter(Sales_Type="R").order_by('Carrier')
+            elif filter_selection == 'sort_by_carrier_Bus':
+                client_info_list = client_info_list.filter(Sales_Type="B").order_by('Carrier')
+            elif filter_selection == 'sort_by_pseudoCID':
+                client_info_list = client_info_list.order_by('PseudoCID')
+            elif filter_selection == 'sort_by_prdate':
+                client_info_list = client_info_list.order_by('PR_Date')
+
+            records = client_info_list.values('PseudoCID', 'Client_Description', 'Sales_Type', 'Carrier', 'Status', 'PR_Date', 'DID_CNT')
+            records_carrier1 = None
+            records_carrier2 = None
+            carrier1 = None
+            carrier2 = None
+    else:
+        records = client_info_list.values('PseudoCID', 'Client_Description', 'Sales_Type', 'Carrier', 'Status', 'PR_Date', 'DID_CNT')
+        records_carrier1 = None
+        records_carrier2 = None
+        carrier1 = None
+        carrier2 = None
+        filter_selection = None        
     
     # Check to see if logging in
     if request.method == 'POST':
@@ -48,8 +91,7 @@ def home(request):
             messages.success(request, "Login Unsuccessful, Please Try Again...")
             return redirect('home')
     else:   
-        return render(request, 'home.html', {'records':records})
-
+        return render(request, 'home.html', {'records':records, 'carrier1':carrier1, 'carrier2':carrier2, 'records_carrier1':records_carrier1, 'records_carrier2':records_carrier2, 'filter_selection': filter_selection})
 
 def logout_user(request):
     logout(request)
@@ -529,11 +571,14 @@ def DID_OrderForm(request):
                 order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
                 order_info.OrderComplete="N"
                 return redirect(reverse('DID_OrderForm-2'))
-            else:
+            elif resp == 'cancel':
                 order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
-                order_info.delete()        
-                messages.success(request, "DID Order Form has been Canceled and deleted...")
-                return redirect('home')
+                order_info.delete()
+                messages.success(request, "DID Order Form has been Canceled and deleted...")                
+            else:
+                messages.success(request, "File has been downloaded - Check local PC 'downloads' folder")                
+            
+            return redirect('home')
         else:
             messages.success(request, "This view only accepts POST request.")
             return redirect('home')
@@ -546,14 +591,7 @@ def DID_OrderForm(request):
 def DIDOrderFrm_Results(request):
     if request.user.is_authenticated:
         data = []
-        FilePath="C:\Python Development Working Folder\\New Order Forms\\"
-        # New -- This method automatically downloads file to local PC
-        #file_name = request.session.get('OrderFileName') + ".xlsx"
-        #file_path = FilePath + file_name
 
-        # Retrieve the relevant NewOrderInfo & NewOrderPseudoCID objects using New Order Info File Name & LeadFileID
-        # New -- This method automatically downloads file to local PC
-        #order_info = NewOrderInfo.objects.filter(FileName=file_name)        
         order_info = NewOrderInfo.objects.filter(FileName=request.session.get('OrderFileName'))
         for OI_record in order_info:
             order_pseudoCIDs = NewOrderPseudoCID.objects.filter(LeadFileID=OI_record.LeadFileID)            
@@ -567,21 +605,21 @@ def DIDOrderFrm_Results(request):
             OI_record.save()
 
         df = pd.DataFrame(data)
-        # New -- This method automatically downloads file to local PC
-        # excel_file = io.BytesIO()
-        # df.to_excel(excel_file, index=False)
-        # response = HttpResponse(excel_file.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        # response['Content-Disposition'] = 'attachment; filename=' + file_name        
-        # ---------------------
-        
-        # Download file to local PC with provided filename and path
-        df.to_excel(FilePath + request.session.get('OrderFileName') + ".xlsx", index=False)
+        # Create a BytesIO object to store the Excel file
+        excel_file = BytesIO()
 
-        #  Perform a process to remove PseudoCID's from `NewPseudoCID` and add record(s) to `ClientInfo`
-        #  Process should compare `NewPseudoCID` vs `NewOrderInfo` if PseudoCID in both remove from `NewPseudoCID`
+        # Write the Excel data to the BytesIO object
+        df.to_excel(excel_file, index=False)
+        excel_file.seek(0)
         
-        OrderFormFile=FilePath+request.session.get('OrderFileName')+".xlsx"
-        return render(request, 'DIDOrderForm_Results.html', {'OrderFormFile':OrderFormFile})
+        # New for AD - Set the appropriate response content type and headers for download
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="{}"'.format(request.session.get('OrderFileName') + ".xlsx")
+        
+        # Write the BytesIO object to the response
+        response.write(excel_file.getvalue())
+
+        return response        
     else:
         messages.success(request, "Must be logged in...")
         return redirect('home')

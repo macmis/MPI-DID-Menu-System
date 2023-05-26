@@ -13,8 +13,12 @@
                 Filters
               </a>
               <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="#">Split Screen by Carrier</a></li>
-                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier">Sort by Carrier</a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=split_by_carrier_All">Split by Carrier | All </a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=split_by_carrier_Res">Split by Carrier | Resi </a></li>                
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=split_by_carrier_Bus">Split by Carrier | Bus </a></li>                                
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_All">Sort by Carrier | All </a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_Res">Sort by Carrier | Res </a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_Bus">Sort by Carrier | Bus </a></li>                                
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_pseudoCID">Sort by PseudoCID</a></li>
                 <li><a class="dropdown-item" href="#">Sort by Call Date</a></li>                
 {% comment %}                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_cdate">Sort by Call Date</a></li> {% endcomment %}
