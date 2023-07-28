@@ -10,6 +10,21 @@
           {% if user.is_authenticated %} 
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Admin Tools
+              </a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{% url 'ImportCSV_ClientInfo' %}">Import CSV Data to model - ClientInfo</a></li>                
+                <li><a class="dropdown-item" href="{% url 'ImportCSV_CientPseudoCID' %}">Import CSV Data to model - ClientPseudoCID</a></li>                
+                <li><a class="dropdown-item" href="{% url 'ImportCSV_ClientList' %}">Import CSV Data to NEW model - ClientList </a></li>                
+                <li><a class="dropdown-item" href="{% url 'ImportCSV_ClientListData' %}">Import CSV Data to NEW model - ClientListData </a></li>
+                <li><a class="dropdown-item" href="{% url 'ExportPseudoCID' %}">Export PseudoCIDs to CSV Format </a></li>
+                <li><a class="dropdown-item" href="{% url 'Reset_InActives' %}">Reset "In-Actives" to "Active"</a></li>
+                <li><a class="dropdown-item" href="{% url 'Create_LeadFileID' %}">Update ClientInfo & ClientPseudoCID LeadFileID records</a></li>                
+              </ul>
+            </li>
+
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 Filters
               </a>
               <ul class="dropdown-menu">
@@ -21,16 +36,14 @@
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_Bus">Sort by Carrier | Bus </a></li>                                
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_pseudoCID">Sort by PseudoCID</a></li>
                 <li><a class="dropdown-item" href="#">Sort by Call Date</a></li>                
-{% comment %}                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_cdate">Sort by Call Date</a></li> {% endcomment %}
+{% comment %}                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_cdate">Sort by Call Date</a></li>  {% endcomment %}
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_prdate">Sort by Purchase Date</a></li>
-                <li><a class="dropdown-item" href="{% url 'Reset_InActives' %}">Reset "In-Actives" to "Active"</a></li>                
               </ul>
             </li>
 
             <li class="nav-item">
               <a class="nav-link" href="{% url 'DID_OrderForm-1' %}">Create DID Order Form</a>
             </li>
-
             
             <li class="nav-item">
               <a class="nav-link" href="{% url 'Load_DIDOrder' %}">Load DIDs From Carrier</a>

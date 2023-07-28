@@ -4,9 +4,9 @@
 
 <div class="col-md-6 offset-md-3">
     <h1>This page temporarily disabled!!!</h1>
-{% comment %} <h1>Register</h1>
+<h1>Register</h1>
 <br/>
-
+{% comment %} 
 <form method="POST" action="">
     {% csrf_token %}
     {% if form.errors %}
@@ -26,7 +26,6 @@
     <br/>
     <button type="submit" class="btn btn-primary">Register</button>
 </form>
- {% endcomment %}
 </div>
-
+ {% endcomment %}
 {% endblock %}

@@ -1,17 +1,18 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h1> DID Order Form - Load Completed DID Order Form From Carrier </h1>
+<h1> DID Order Form - Load DID Order Form From Carrier </h1>
 <br/><br/>
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"> 
 
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    Select file location and file from Carrier
+    
+    <p> Select file location and Order Form from Carrier </p>    
     <input type="file" name="excel_file">
 
     <br/><br/><br/><br/>
     <button type="submit" class="btn btn-primary">Upload</button>
 </form>
-  
+
 {% endblock %}

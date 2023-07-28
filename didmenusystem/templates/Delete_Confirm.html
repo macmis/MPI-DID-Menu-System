@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h1> DID Menu System - Create PseudoCID files </h1>
+<h1> DID Menu System - Create "DELETE-PseudoCID" & "Carrier-Cancelation" Files </h1>
 <br><br>
-<p> Create "PseudoCID Delete Files" for the following? </p>
-<form method="post" action="{% url 'Create_PseudoFile' %}">
+<p> Create "PseudoCID Delete Files" & "Carrier Cancelation Form" for the following? </p>
+<form method="POST" action="{% url 'Create_Del_PseudoFile' %}">
     {% csrf_token %}
 
     {% for record in client_info %}
@@ -35,7 +35,7 @@
         </tbody>
     </table>
     <a href="{% url 'home' %}" class="btn btn-secondary">Cancel</a>
-    <button type="submit" class="btn btn-primary">Create/Download PseudoCID File</button>
+    <button type="submit" class="btn btn-primary">Download 'DELETE-PseudoCID' & 'Carrier-Cancelation' Files</button>
     <a href="{% url 'home' %}" class="btn btn-secondary">Finish</a>    
 </form>
 
