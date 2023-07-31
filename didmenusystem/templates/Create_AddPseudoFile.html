@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1> DID Menu System - Create "ADD" PseudoCID file: </h1>
+<br><br>
+<p> The Following Records Have Been Added... </p>
+
+<form method="POST" action="{% url 'Create_AddPseudoFile' %}" enctype="multipart/form-data">    
+    {% csrf_token %}
+
+    <table class="table table-striped table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th scope="col">PseudoCID</th>
+                <th scope="col">Client Description</th>            
+                <th scope="col">Sales Type</th>            
+                <th scope="col">States</th>            
+                <th scope="col">Carrier</th>            
+                <th scope="col">Total DIDs</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order_info in DID_OrderInfo %}
+                <tr>            
+                    <td>{{ order_info.PseudoCID }}</td>                    
+                    <td>{{ order_info.Client_Description }}</td> 
+                    <td>{{ order_info.Sales_Type }}</td>                             
+                    <td>{{ order_info.Sel_States }}</td>                                                         
+                    <td>{{ order_info.Carrier }}</td>                             
+                    <td>{{ order_info.Tot_DIDs }}</td>                             
+                </tr>                    
+            {% endfor %}                            
+        </tbody>
+    </table>
+    <br/><br/>
+    <button type="submit" class="btn btn-primary">Create/Download 'ADD' PseudoCID File</button>
+    <a href="{% url 'home' %}" class="btn btn-secondary">Finish</a>    
+</form>
+{% endblock %}

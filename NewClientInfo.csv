@@ -1,0 +1,56 @@
+id,Client_Description,Sales_Type,Client_Code,PubCode,InBnd_TranNo,VoiceMail
+1,Amer. Fed. of Police & Concerned Citizens,R,AFPC,NARP,8004904318,7382
+2,Amer. Fed. of Police & Concerned Citizens,B,AFPC,NABP,8004904318,7382
+3,American Breast Cancer Support Assoc.,R,ABCS,NAR1,8009056057,7384
+4,American Breast Cancer Support Assoc.,B,ABCS,NAB1,8009056057,7384
+5,"Arizona State Lodge, Fraternal Order of Police Inc.",B,AFOP,AZBF,8005250676,7361
+6,"Arizona State Lodge, Fraternal Order of Police Inc.",R,AFOP,AZRF,8005250676,7361
+7,Autistic Children of America,R,ACOA,NARZ,8006899497,7378
+8,Autistic Children of America,B,ACOA,NABZ,8006899497,7378
+9,Childhood Leukemia Foundation,R,CLF,NARG,8006558660,7374
+10,Childhood Leukemia Foundation,B,CLF,NABG,8006558660,7374
+11,Command Officers Assoc. of Michigan,R,COAM,MIRC,8004977178,7389
+12,Command Officers Assoc. of Michigan,B,COAM,MIBC,8004977178,7389
+13,Committee for Missing Children,R,CMC,NARM,8005210301,7360
+14,Committee for Missing Children,B,CMC,NABM,8005210301,7360
+15,Firefighters Charitable Foundation,R,FCF,NARF,8004976964,7394
+16,Firefighters Charitable Foundation,B,FCF,NABF,8004976964,7394
+17,Florida Highway Patrol Cmd Officers Assoc.,R,FHPC,FLRH,8006539369,7364
+18,Florida Highway Patrol Cmd Officers Assoc.,B,FHPC,FLBH,8006539369,7364
+19,Illinois Police Assoc.,R,IPA,ILRP,8006561369,7369
+20,Illinois Police Assoc.,B,IPA,ILBP,8006561369,7369
+21,Kentucky FOP,R,KFOP,KYRP,8007467920,7367
+22,Kentucky FOP,B,KFOP,KYBP,8007467920,7367
+23,MI State Fraternal Order of Police FOP,B,MFOP,MIBF,8009055395,7383
+24,MPI All-Default,B,ALLDFLT,NA,8006803192,7351
+25,MPI OB-Default,B,OBDFLT,NA,8004724218,7350
+26,National Assoc. of Chiefs of Police,R,NACP,NARE,8006539356,7373
+27,National Assoc. of Chiefs of Police,B,NACP,NABE,8006539356,7373
+28,National Police & Troopers Assoc.,R,NPTA,NARQ,8007436794,7357
+29,National Police & Troopers Assoc.,B,NPTA,NABQ,8007436794,7357
+30,New Jersey Police Officer Foundation,R,NJPF,NJRP,8007981769,7377
+31,New Jersey Police Officer Foundation,B,NJPF,NJBP,8007981769,7377
+32,New York State Park Police PBA,R,NYSP,NYRS,8005202703,7390
+33,New York State Park Police PBA,B,NYSP,NYBS,8005202703,7390
+34,Ohio Patrolmen's Benevolent Assoc.,R,OHPB,OHRP,8005187550,7397
+35,Ohio Patrolmen's Benevolent Assoc.,B,OHPB,OHBP,8005187550,7397
+36,Police Officers Assoc. of Michigan,R,POAM,MIRR,8004913503,7375
+37,Police Officers Assoc. of Michigan,B,POAM,MIBR,8004913503,7375
+38,South Carolina Fraternal Order of Police,R,SCFP,SCRP,8006561325,7358
+39,South Carolina Fraternal Order of Police,B,SCFP,SCBP,8006561325,7358
+40,South Carolina Trooper Assoc.,R,SCTA,SCRT,8005210078,7363
+41,South Carolina Trooper Assoc.,B,SCTA,SCBT,8005210078,7363
+42,Texas Coalition of Police & Sherrifs,R,COPS,TXRC,8007430105,7362
+43,Texas Coalition of Police & Sherrifs,B,COPS,TXBC,8007430105,7362
+44,The United Police Fund,R,UPF,PCRU,8002151579,7381
+45,The United Police Fund,B,UPF,PCBU,8002151579,7381
+46,Veterans Relief Network,R,VRN,NARI,8007470052,7372
+47,Veterans Relief Network,B,VRN,NABI,8007470052,7372
+48,Veterans Support Foundation,R,VSF,NARJ,8006905034,7379
+49,Veterans Support Foundation,B,VSF,NABJ,8006905034,7379
+50,Virginia Police Fund,R,VPF,VARC,8045001961,7387
+51,Virginia Police Fund,B,VPF,VABC,8045001961,7387
+52,Volunteer Firefighter Alliance,R,VFA,NARY,8006905260,7380
+53,Volunteer Firefighter Alliance,B,VFA,NABY,8006905260,7380
+54,MPI OB-Default,R,OBDFLT,NA,8004724218,7350
+55,MPI All-Default,R,ALLDFLT,NA,8006803192,7351

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1> DID Menu System - Export PseudoCIDs To CSV Format </h1>
+<br/><br/>
+<form method="post" action="{% url 'ExportPseudoCID' %}">
+    {% csrf_token %}
+
+    <div class="row">
+        <div class="col-md-6">
+            <br><br><br>
+            Select PseudoCIDs You Wish To Convert CSV:
+            <br>
+            <label for="selected_pseudoCID"></label>
+            <select id="selected_pseudoCID" name="selected_pseudoCID[]" multiple size="20">
+                <option selected disabled="true">-- Select --</option>
+                {% if records %}
+                    {% for record in records %}
+                        <option value="{{ record.PseudoCID }} {{ record.Client_Description }}">{{ record.PseudoCID }} - {{ record.Sales_Type }} {{ record.Client_Description }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+        </div>
+    </div>
+
+    <br/><br/>
+    <button type="submit" class="btn btn-primary">Submit</button>
+    <a href="{% url 'home' %}" class="btn btn-secondary">Finish</a>    
+</form>
+
+{% endblock %}
