@@ -7,11 +7,10 @@
 <form method="POST" action="{% url 'Create_Del_PseudoFile' %}">
     {% csrf_token %}
 
-    {% for record in client_info %}
-        <input type="hidden" name="selected_pseudoCID" value="{{ record.PseudoCID }}">
-        <input type="hidden" name="selected_leadFileID" value="{{ record.LeadFileID }}">        
+    {% for instance in client_list_instances %}
+        <input type="hidden" name="selected_pseudoCID" value="{{ instance.PseudoCID }}">
     {% endfor %}
-    
+
     <table class="table table-striped table-hover table-bordered">
         <thead class="table-dark">
             <tr>
@@ -22,13 +21,13 @@
             </tr>
         </thead>
         <tbody>
-            {% if client_info %}
-                {% for record in client_info %}
+             {% if client_list_instances %}
+                {% for instance in client_list_instances %}
                     <tr>            
-                        <td>{{ record.PseudoCID }}</td>
-                        <td>{{ record.Client_Description }}</td>
-                        <td>{{ record.DID_CNT }}</td>                    
-                        <td>{{ record.Carrier }}</td>
+                        <td>{{ instance.PseudoCID }}</td>
+                        <td>{{ instance.Client_Description }}</td>
+                        <td>{{ instance.DID_CNT }}</td>                    
+                        <td>{{ instance.Carrier }}</td>
                     </tr>
                 {% endfor %}
             {% endif %}

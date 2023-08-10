@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 
-{% if context.client_info %}
+{% if context.client_list %}
     <table class="table table-striped table-hover table-bordered">
         <thead class="table-dark">
             <tr>
@@ -18,26 +18,41 @@
             </tr>
         </thead>
         <tbody>
-            {% for record in context.client_pseudocids %}
+            {% if context.client_list_data|length > 1 %}            
+                {% for record in context.client_list_data %}
+                    <tr>
+                        <td>{{ context.client_list.PseudoCID }}</td>
+                        <td>{{ record.PhoneNo }}</td>
+                        <td>{{ record.PhnNo_Loc }}</td> 
+                        <td>{{ context.client_list.Sales_Type }}</td> 
+                        <td>{{ context.client_list.PubCode }}</td> 
+                        <td>{{ context.client_list.Client_Code }}</td> 
+                        <td>{{ context.client_list.Client_Description }}</td> 
+                        <td>{{ context.client_list.Carrier }}</td> 
+                        <td>{{ context.client_list.Status }}</td> 
+                        <td>{{ context.client_list.PR_Date }}</td> 
+                    </tr>
+                {% endfor %}
+            {% else %}                
                 <tr>
-                    <td>{{ context.client_info.PseudoCID }}</td>
-                    <td>{{ record.PhoneNo }}</td>
-                    <td>{{ record.PhnNo_Loc }}</td> 
-                    <td>{{ context.client_info.Sales_Type }}</td> 
-                    <td>{{ context.client_info.PubCode }}</td> 
-                    <td>{{ context.client_info.Client_Code }}</td> 
-                    <td>{{ context.client_info.Client_Description }}</td> 
-                    <td>{{ context.client_info.Carrier }}</td> 
-                    <td>{{ context.client_info.Status }}</td> 
-                    <td>{{ context.client_info.PR_Date }}</td> 
+                    <td>{{ context.client_list.PseudoCID }}</td>
+                    <td>{{ context.client_list_data.PhoneNo }}</td>
+                    <td>{{ context.client_list_data.PhnNo_Loc }}</td> 
+                    <td>{{ context.client_list.Sales_Type }}</td> 
+                    <td>{{ context.client_list.PubCode }}</td> 
+                    <td>{{ context.client_list.Client_Code }}</td> 
+                    <td>{{ context.client_list.Client_Description }}</td> 
+                    <td>{{ context.client_list.Carrier }}</td> 
+                    <td>{{ context.client_list.Status }}</td> 
+                    <td>{{ context.client_list.PR_Date }}</td> 
                 </tr>
-            {% endfor %}
+            {% endif %}
         </tbody>
     </table>
     <br/><br/>
     <a href="{% url 'home' %}" class="btn btn-secondary">Back</a>
 {% else %}
-    <h1> No results were found on data entered! </h1>
+    <h1> No data found on those search results. </h1>
 {% endif %}
 
 {% endblock %}

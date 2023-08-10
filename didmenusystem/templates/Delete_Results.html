@@ -7,9 +7,8 @@
 <form method="post" action="{% url 'Delete_Confirm' %}">
     {% csrf_token %}
 
-    {% for record in client_info %}
+    {% for record in client_pseudoCIDs %}
         <input type="hidden" name="selected_pseudoCID" value="{{ record.PseudoCID }}">
-        <input type="hidden" name="selected_leadFileID" value="{{ record.LeadFileID }}">        
     {% endfor %}
 
     <table class="table table-striped table-hover table-bordered">
@@ -25,8 +24,8 @@
             </tr>
         </thead>
         <tbody>
-            {% if client_info %}
-                {% for record in client_info %}
+            {% if client_pseudoCIDs %}
+                {% for record in client_pseudoCIDs %}
                     <tr>
                         <td>{{ record.PseudoCID }}</td>
                         <td>{{ record.Client_Description }}</td>

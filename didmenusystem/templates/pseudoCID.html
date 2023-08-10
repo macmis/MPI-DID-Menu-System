@@ -17,19 +17,19 @@
         </tr>
     </thead>
     <tbody>
-        {% if context.client_info %}
-            {% for record in context.client_pseudocids %}
+        {% if client_info %}
+            {% for record in client_pseudocids %}
                 <tr>
-                    <td>{{ context.client_info.PseudoCID }}</td>
+                    <td>{{ client_info.PseudoCID }}</td>
                     <td>{{ record.PhoneNo }}</td>
                     <td>{{ record.PhnNo_Loc }}</td> 
-                    <td>{{ context.client_info.Sales_Type }}</td> 
-                    <td>{{ context.client_info.PubCode }}</td> 
-                    <td>{{ context.client_info.Client_Code }}</td> 
-                    <td>{{ context.client_info.Client_Description }}</td> 
-                    <td>{{ context.client_info.Carrier }}</td> 
-                    <td>{{ context.client_info.Status }}</td> 
-                    <td>{{ context.client_info.PR_Date }}</td> 
+                    <td>{{ client_info.Sales_Type }}</td> 
+                    <td>{{ client_info.PubCode }}</td> 
+                    <td>{{ client_info.Client_Code }}</td> 
+                    <td>{{ client_info.Client_Description }}</td> 
+                    <td>{{ client_info.Carrier }}</td> 
+                    <td>{{ client_info.Status }}</td> 
+                    <td>{{ client_info.PR_Date }}</td> 
                 </tr>
             {% endfor %}
         {% endif %}

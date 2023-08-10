@@ -26,7 +26,6 @@ urlpatterns = [
     path('PseudoFile-Add/', views.Create_Add_PseudoFile, name='Create_AddPseudoFile'),    
     path('Search_Results/', views.SearchResults, name='Search_Results'),
     path('Reset_InActives/', views.ResetInActives, name='Reset_InActives'),
-    path('Create_LeadFileID/', views.CreateLeadFileID, name='Create_LeadFileID'),
     path('PseudoCID_Export/', views.Export_PseudoCID, name='ExportPseudoCID'),
     path('ImportCSV_ClientInfo/', views.ImportCSV_ClientInfo, name='ImportCSV_ClientInfo'),
     path('ImportCSV_CientPseudoCID/', views.ImportCSV_CientPseudoCID, name='ImportCSV_CientPseudoCID'),    

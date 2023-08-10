@@ -93,7 +93,7 @@ class ClientList(models.Model):
         ('PENDING', 'Pending'),
         ('INACTIVE', 'In-Active'),
     )
-    PseudoCID = models.CharField(max_length=10, unique=True)  # Add unique=True to ensure uniqueness    
+    PseudoCID = models.CharField(max_length=10)
     Client_Description = models.CharField(max_length=60)
     Client_Code = models.CharField(max_length=8)
     PubCode = models.CharField(max_length=4, blank=True)
@@ -103,29 +103,28 @@ class ClientList(models.Model):
     Carrier = models.CharField(max_length=30)
     Status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Pending')
     PR_Date = models.DateField(blank=True, null=True)
-    LastUse_Date = models.DateField(blank=True, null=True, default='')
+    LastUse_Date = models.DateField(blank=True, null=True, default=None)
     DID_CNT = models.IntegerField(default=0, blank=True, null=True)
     Notes = models.CharField(max_length=60, blank=True, null=True, default='')
 
     # Function - Count the number of records in `ClientListData` for each 'PseudoCID'
     def update_did_cnt(self):
-        count = ClientListData.objects.filter(PseudoCID=self.PseudoCID).count()
-
-        # Update the DID_CNT field for this ClientInfo object
+        count = ClientListData.objects.filter(PseudoCID=self).count()        
+        
+        # Update the DID_CNT field for this ClientList object
         self.DID_CNT = count
         self.save()
 
     def __str__(self):
         return(f"{self.PseudoCID} {self.Client_Description} {self.PR_Date} {self.Status} {self.LastUse_Date} {self.DID_CNT}")
 
-# List of all PseudoCIDs and DIDs within. Linked model `ClientList`
+# List of all PseudoCIDs and DIDs within. Linked to model `ClientList`
 class ClientListData(models.Model):
     STATUS_CHOICES = (
         ('ACTIVE', 'Active'),
         ('PENDING', 'Pending'),
         ('INACTIVE', 'In-Active'),
     )
-    #PseudoCID = models.CharField(max_length=10)
     PseudoCID = models.ForeignKey(ClientList, on_delete=models.CASCADE)    
     PhoneNo = models.CharField(max_length=10)
     PhnNo_Loc = models.CharField(max_length=2)

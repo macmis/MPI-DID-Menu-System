@@ -18,8 +18,8 @@
         </tr>
     </thead>
     <tbody>
-        {% if client_info_inactive %}
-            {% for record in client_info_inactive %}
+        {% if client_list_inactive %}
+            {% for record in client_list_inactive %}
                 <tr>
                     <td>{{ record.PseudoCID }}</td>
                     <td>{{ record.Client_Description }}</td>                     
