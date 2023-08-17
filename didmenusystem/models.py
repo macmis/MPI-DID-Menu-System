@@ -205,39 +205,39 @@ class NewOrderPseudoCID(models.Model):
     def __str__(self):
         return(f"{self.LeadFileID} {self.PseudoCID} {self.Client_Description} {self.Sales_Type} {self.Client_Code} {self.PubCode} {self.InBnd_TranNo} {self.VoiceMail} {self.DID_CNT}")
 
-# # Infomation used to create new order form.  Linked with 'NewOrderList'
-# class NewOrderList(models.Model):
-#     YES_NO_CHOICES = (
-#         ('Y', 'Yes'),
-#         ('N', 'No'),
-#         ('P', 'Pending'),
-#     )
-#     LeadFileID = models.CharField(max_length=30, null=True)
-#     Carrier = models.CharField(max_length=30)
-#     Total_DID_CNT = models.IntegerField(default=0, blank=True, null=True)
-#     Sel_States = models.CharField(max_length=160)
-#     PR_Date = models.DateField(blank=True)
-#     FileName = models.CharField(max_length=25, blank=True)
-#     OrderComplete = models.CharField(max_length=1, choices=YES_NO_CHOICES, default='P') 
+# Infomation used to create new order form.  Linked with 'NewOrderListData'
+class NewOrderList(models.Model):
+    YES_NO_CHOICES = (
+        ('Y', 'Yes'),
+        ('N', 'No'),
+        ('P', 'Pending'),
+    )
+    LeadFileID = models.CharField(max_length=30, null=True)
+    Carrier = models.CharField(max_length=30)
+    Total_DID_CNT = models.IntegerField(default=0, blank=True, null=True)
+    Sel_States = models.CharField(max_length=160)
+    PR_Date = models.DateField(blank=True, null=True)    
+    FileName = models.CharField(max_length=25, blank=True)
+    OrderComplete = models.CharField(max_length=1, choices=YES_NO_CHOICES, default='P') 
        
-#     def __str__(self):
-#         return(f"{self.LeadFileID} {self.Carrier} {self.Total_DID_CNT} {self.Sel_States} {self.PR_Date} {self.FileName}")
+    def __str__(self):
+        return(f"{self.LeadFileID} {self.Carrier} {self.Total_DID_CNT} {self.Sel_States} {self.PR_Date} {self.FileName}")
 
-# # Infomation used to create new order form
-# class NewOrderListData(models.Model):
-#     LeadFileID = models.CharField(max_length=30, null=True)
-#     PseudoCID =  models.CharField(max_length=10)    
-#     Client_Description = models.CharField(max_length=60)
-#     Sales_Type = models.CharField(max_length=1, null=True)    
-#     Client_Code = models.CharField(max_length=8, null=True)
-#     PubCode = models.CharField(max_length=4, blank=True)
-#     InBnd_TranNo =  models.CharField(max_length=10, null=True)
-#     VoiceMail = models.CharField(max_length=4, null=True)
-#     DID_CNT = models.IntegerField(default=0, blank=True, null=True)
-#     order_info = models.ForeignKey(NewOrderList, on_delete=models.CASCADE, related_name='pseudo_cids', null=True, default=None)
+# Infomation used to create new order form
+class NewOrderListData(models.Model):
+    LeadFileID = models.CharField(max_length=30, null=True)
+    PseudoCID =  models.CharField(max_length=10)    
+    Client_Description = models.CharField(max_length=60)
+    Sales_Type = models.CharField(max_length=1, null=True)    
+    Client_Code = models.CharField(max_length=8, null=True)
+    PubCode = models.CharField(max_length=4, blank=True)
+    InBnd_TranNo =  models.CharField(max_length=10, null=True)
+    VoiceMail = models.CharField(max_length=4, null=True)
+    DID_CNT = models.IntegerField(default=0, blank=True, null=True)
+    order_list = models.ForeignKey(NewOrderList, on_delete=models.CASCADE, related_name='pseudo_cids', null=True, default=None)
         
-#     def __str__(self):
-#         return(f"{self.LeadFileID} {self.PseudoCID} {self.Client_Description} {self.Sales_Type} {self.Client_Code} {self.PubCode} {self.InBnd_TranNo} {self.VoiceMail} {self.DID_CNT}")
+    def __str__(self):
+        return(f"{self.LeadFileID} {self.PseudoCID} {self.Client_Description} {self.Sales_Type} {self.Client_Code} {self.PubCode} {self.InBnd_TranNo} {self.VoiceMail} {self.DID_CNT}")
 
 
 # List of Active Clients to assigned to MPI PseudoCIDs
@@ -273,33 +273,33 @@ class NewPseudoCID(models.Model):
 
 
 
-# # List of all MPI PseudoCID's 
-# class MPIPseudoCIDs(models.Model):
-#     STATUS_CHOICES = (
-#         ('A', 'ACTIVE'),
-#         ('I', 'INACTIVE'),
-#         ('X', 'UNASSIGNED'),        
-#     )
+# List of all MPI PseudoCID's 
+class MPIPseudoCIDs(models.Model):
+    STATUS_CHOICES = (
+        ('A', 'ACTIVE'),
+        ('I', 'INACTIVE'),
+        ('X', 'UNASSIGNED'),        
+    )
     
-#     PseudoCID =  models.CharField(max_length=10)
-#     Sales_Type = models.CharField(max_length=1)    
-#     Carrier = models.CharField(max_length=30)
-#     Status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='I')    
+    PseudoCID =  models.CharField(max_length=10)
+    Sales_Type = models.CharField(max_length=1)    
+    Carrier = models.CharField(max_length=30)
+    Status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='I')    
         
-#     def __str__(self):
-#         return(f"{self.PseudoCID} {self.Sales_Type} {self.Carrier} {self.Status}")
+    def __str__(self):
+        return(f"{self.PseudoCID} {self.Sales_Type} {self.Carrier} {self.Status}")
 
-# # List of Active Clients to assigned to MPI PseudoCIDs
-# class MPIClients(models.Model):
-#     Client_Description =  models.CharField(max_length=60)
-#     Sales_Type = models.CharField(max_length=1)    
-#     Client_Code = models.CharField(max_length=8)
-#     PubCode = models.CharField(max_length=4, blank=True)
-#     InBnd_TranNo =  models.CharField(max_length=10)
-#     VoiceMail = models.CharField(max_length=4, null=True)    
+# List of Active Clients to assigned to MPI PseudoCIDs
+class MPIClients(models.Model):
+    Client_Description =  models.CharField(max_length=60)
+    Sales_Type = models.CharField(max_length=1)    
+    Client_Code = models.CharField(max_length=8)
+    PubCode = models.CharField(max_length=4, blank=True)
+    InBnd_TranNo =  models.CharField(max_length=10)
+    VoiceMail = models.CharField(max_length=4, null=True)    
         
-#     def __str__(self):
-#         return(f"{self.Client_Description} {self.Sales_Type} {self.Client_Code} {self.PubCode} {self.InBnd_TranNo} {self.VoiceMail}")
+    def __str__(self):
+        return(f"{self.Client_Description} {self.Sales_Type} {self.Client_Code} {self.PubCode} {self.InBnd_TranNo} {self.VoiceMail}")
 
 
 # REMOVE THIS TABLE ONCE ALL DATA HAS BEEN REFORMATTED AND UPLOADED TO NEW TABLES

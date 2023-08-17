@@ -1,7 +1,7 @@
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django import forms
-from .models import PhoneRecord, NewOrderInfo, NewOrderPseudoCID
+from .models import PhoneRecord, NewOrderInfo, NewOrderPseudoCID, ClientList
 
 class SignUpForm(UserCreationForm):
     first_name = forms.CharField(label="", max_length=50 , widget=forms.TextInput(attrs={'class':'form-control', 'placeholder':'First Name'}))
@@ -29,6 +29,16 @@ class SignUpForm(UserCreationForm):
         self.fields['password2'].widget.attrs['placeholder'] = 'Confirm Password'
         self.fields['password2'].label = ''
         self.fields['password2'].help_text = '<span class="form-text text-muted"><small>Enter the same password as before, for verification.</small></span>'	
+
+
+# `LastUse_Date` form widget to edit field
+class LastUseDateEditForm(forms.ModelForm):
+    class Meta:
+        model = ClientList
+        fields = ['LastUse_Date']  # Include other fields if needed
+        widgets = {
+            'LastUse_Date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        }
 
 
 # Create Add PseudoCID Form

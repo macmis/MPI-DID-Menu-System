@@ -13,18 +13,19 @@
                 Admin Tools
               </a>
               <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="{% url 'ImportCSV_ClientInfo' %}">Import CSV Data to model - ClientInfo</a></li>                
-                <li><a class="dropdown-item" href="{% url 'ImportCSV_CientPseudoCID' %}">Import CSV Data to model - ClientPseudoCID</a></li>                
-                <li><a class="dropdown-item" href="{% url 'ImportCSV_ClientList' %}">Import CSV Data to NEW model - ClientList </a></li>                
+                <li><a class="dropdown-item" href="{% url 'ImportCSV_ClientList' %}">Import CSV Data to NEW model - ClientList </a></li>
                 <li><a class="dropdown-item" href="{% url 'ImportCSV_ClientListData' %}">Import CSV Data to NEW model - ClientListData </a></li>
+                <li><a class="dropdown-item" href="{% url 'ImportCSV_NewOrderList' %}">Import CSV Data to NEW model - NewOrderList </a></li>
+                <li><a class="dropdown-item" href="{% url 'ImportCSV_NewOrderListData' %}">Import CSV Data to NEW model - NewOrderListData </a></li>
+                <li><a class="dropdown-item" href="{% url 'ImportCSV_MPIPseudoCIDs' %}">Import CSV Data to NEW model - MPIPseudoCIDs </a></li>
+                <li><a class="dropdown-item" href="{% url 'ImportCSV_MPIClients' %}">Import CSV Data to NEW model - MPIClients </a></li>
                 <li><a class="dropdown-item" href="{% url 'ExportPseudoCID' %}">Export PseudoCIDs to CSV Format </a></li>
-                <li><a class="dropdown-item" href="{% url 'Reset_InActives' %}">Reset "In-Actives" to "Active"</a></li>
               </ul>
             </li>
 
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                Filters
+                Reformat Home Screen
               </a>
               <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=split_by_carrier_All">Split by Carrier | All </a></li>
@@ -34,8 +35,8 @@
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_Res">Sort by Carrier | Res </a></li>
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_Bus">Sort by Carrier | Bus </a></li>                                
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_pseudoCID">Sort by PseudoCID</a></li>
-                <li><a class="dropdown-item" href="#">Sort by Call Date</a></li>                
-{% comment %}                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_cdate">Sort by Call Date</a></li>  {% endcomment %}
+{% comment %}                 <li><a class="dropdown-item" href="#">Sort by Date Usage</a></li>                 {% endcomment %}
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_udate">Sort by Date Usage</a></li>
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_prdate">Sort by Purchase Date</a></li>
               </ul>
             </li>

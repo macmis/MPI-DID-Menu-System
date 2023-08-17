@@ -34,8 +34,8 @@
                     <tr>
                         <td><a href="{% url 'pseudoCID' record_C1.PseudoCID %}">{{ record_C1.PseudoCID }}</a></td>
                         <td>{{ record_C1.Client_Description }}</td> 
-                        <td>{{ record_C1.Sales_Type }}</td> 
-                        <td>{{ record_C1.LastUse_Date }}</td> 
+                        <td>{{ record_C1.Sales_Type }}</td>
+                        <td><a href="{% url 'edit_lastuse_date' record_C1.PseudoCID %}">{{ record_C1.LastUse_Date }}</a></td>
                         <td>{{ record_C1.PR_Date }}</td> 
                         <td>{{ record_C1.DID_CNT }}</td> 
                         <td>{{ record_C1.Carrier }}</td> 
@@ -43,10 +43,10 @@
                         <td><a href="{% url 'pseudoCID' record_C2.PseudoCID %}">{{ record_C2.PseudoCID }}</a></td>
                         <td>{{ record_C2.Client_Description }}</td> 
                         <td>{{ record_C2.Sales_Type }}</td> 
-                        <td>{{ record_C2.LastUse_Date }}</td> 
+                        <td><a href="{% url 'edit_lastuse_date' record_C2.PseudoCID %}">{{ record_C2.LastUse_Date }}</a></td>
                         <td>{{ record_C2.PR_Date }}</td> 
                         <td>{{ record_C2.DID_CNT }}</td> 
-                        <td>{{ record_C2.Carrier }}</td> 
+                        <td>{{ record_C2.Carrier }}</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -73,7 +73,7 @@
                         <td>{{ record.Sales_Type }}</td>
                         <td>{{ record.Carrier }}</td>
                         <td>{{ record.Status }}</td>
-                        <td>{{ record.LastUse_Date }}</td>                         
+                        <td><a href="{% url 'edit_lastuse_date' record.PseudoCID %}">{{ record.LastUse_Date }}</a></td>
                         <td>{{ record.PR_Date }}</td>
                         <td>{{ record.DID_CNT }}</td>
                     </tr>

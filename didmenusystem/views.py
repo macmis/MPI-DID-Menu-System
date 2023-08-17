@@ -6,9 +6,9 @@ from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseNotAllowed, FileResponse
-from .forms import SignUpForm, AddPseudoCIDForm, NewOrderInfoForm, NewOrderPseudoCIDForm
+from .forms import SignUpForm, LastUseDateEditForm, AddPseudoCIDForm, NewOrderInfoForm, NewOrderPseudoCIDForm
 from datetime import datetime, timedelta
-from .models import PhoneRecord, States, Carrier, ClientInfo, ClientPseudoCID, PseudoFile, NewOrderInfo, NewOrderPseudoCID, NewPseudoCID, NewClientInfo, ClientList, ClientListData
+from .models import States, Carrier, ClientList, ClientListData, NewOrderList, NewOrderListData, MPIPseudoCIDs, MPIClients, PseudoFile, ClientInfo, ClientPseudoCID, NewOrderInfo, NewOrderPseudoCID, NewPseudoCID, NewClientInfo, PhoneRecord
 from io import BytesIO
 from zipfile import ZipFile
 from openpyxl import Workbook
@@ -66,6 +66,8 @@ def home(request):
                 client_info_list = client_info_list.filter(Sales_Type="B").order_by('Carrier')
             elif filter_selection == 'sort_by_pseudoCID':
                 client_info_list = client_info_list.order_by('PseudoCID')
+            elif filter_selection == 'sort_by_udate':
+                client_info_list = client_info_list.order_by('-LastUse_Date')
             elif filter_selection == 'sort_by_prdate':
                 client_info_list = client_info_list.order_by('PR_Date')
 
@@ -80,7 +82,7 @@ def home(request):
         records_carrier2 = None
         carrier1 = None
         carrier2 = None
-        filter_selection = None        
+        filter_selection = None
     
     # Check to see if logging in
     if request.method == 'POST':
@@ -95,15 +97,36 @@ def home(request):
         else:
             messages.error(request, "Login Unsuccessful, Please Try Again...")
             return redirect('home')
+
     else:
         return render(request, 'home.html', {'records':records, 'carrier1':carrier1, 'carrier2':carrier2, 'records_carrier1':records_carrier1, 'records_carrier2':records_carrier2, 'filter_selection': filter_selection})
 
+
+# Function to handle form submission for editing `LastUse_Date`
+def edit_lastuse_date(request, pseudo_cid):
+    client = get_object_or_404(ClientList, PseudoCID=pseudo_cid)    
+
+    if request.method == 'POST':
+        edit_form = LastUseDateEditForm(request.POST, instance=client)        
+        if edit_form.is_valid():
+            edit_form.save()
+
+            messages.success(request, f"Date Usage for {client.PseudoCID} has been updated.")
+            return redirect('home')  # Redirect back to the home page or another appropriate view
+    else:
+        edit_form = LastUseDateEditForm(instance=client)
+
+    return render(request, 'edit_lastuse_date.html', {'client': client, 'edit_form': edit_form})
+
+
+# Function to handle logout procedure
 def logout_user(request):
     logout(request)
     messages.success(request, "You Have Successfully Logged Out...")
     return redirect('home')
 
-
+# Function to handle registering a new user
+# Temporary commented out. Review ways to activate at administrator level
 def register_user(request):
     if request.method == 'POST':
         form = SignUpForm(request.POST)
@@ -123,6 +146,7 @@ def register_user(request):
     return render(request, 'register.html', {'form':form})
 
 
+# Function to handle hyper-link home page for `PseudoCID`
 def pseudo_record(request, pseudo):
     if request.user.is_authenticated:
         # Fetch the ClientList instance based on the PseudoCID
@@ -164,9 +188,10 @@ def add_pseudoCID(request):
 def Create_DIDOrdrForm1(request):
     if request.user.is_authenticated:
         # Clean incomplete Order Form records
-        order_info = NewOrderInfo.objects.filter(OrderComplete="N")
-        for record in order_info:
-            order_info.delete()        
+        order_info_incomplete = NewOrderList.objects.filter(OrderComplete="N")
+
+        # Delete incomplete records
+        order_info_incomplete.delete()
 
         carriers = Carrier.objects.all()
         return render(request, 'DID_OrderForm-1.html', {'carriers': carriers})
@@ -183,24 +208,26 @@ def Create_DIDOrdrForm1a(request):
         return redirect('home')
     
     
-# Get amount of DIDs, select non-active PseudoCIDs and assign to clients
+# Get amount of DIDs, select non-active PseudoCIDs and assign to MPI list of Clients
 def Create_DIDOrdrForm2(request):
     if request.user.is_authenticated:
         curetime = datetime.now()
-        NewOrderForm="Y"
+        NewOrderForm="Y" # Flag to identify a NEW order form. 
 
+        # Continuation from Existing order form
         if request.method == 'GET':
-            order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
-            filename=order_info.FileName
-            CarrierName=order_info.Carrier
-            NewOrderForm=order_info.OrderComplete
-        elif request.method == 'POST':
+            order_list = NewOrderList.objects.get(LeadFileID=request.session.get('LeadFileID'))
+            filename=order_list.FileName
+            CarrierName=order_list.Carrier
+            NewOrderForm=order_list.OrderComplete
+        # Create a NEW order form
+        elif request.method == 'POST': 
             # Get PseudoCID type, Sales Type and Carrier
             selected_option = request.POST.get('pseudoCID_options')
             selected_SalesType = request.POST.get('SalesType_options')
             request.session['SalesType'] = selected_SalesType            
             selected_carrier = request.POST.get('selected_carrier')
-            # Create LeadFile Name
+            # Create order form file name
             CarrierInfo = selected_carrier.split()
             CarrierName = CarrierInfo[0]
             filename = CarrierInfo[2] + "-Order_"
@@ -208,6 +235,7 @@ def Create_DIDOrdrForm2(request):
             fetime = etime[:8] + "-" + etime[8:]
             filename = filename + fetime
 
+            # Validate user selected a "Carrier" and "Sales Type"
             if not selected_carrier:
                 messages.success(request, "No Carrier was selected for Order Form!  Please try again...")
                 return redirect('home')
@@ -219,19 +247,20 @@ def Create_DIDOrdrForm2(request):
             messages.success(request, "This view only accepts POST request.")
             return redirect('home')
 
-        # Create a unique LeadFileID
+        # Create a unique LeadFileID for New Order Form
         LeadFileID = str(uuid.uuid4())
         LeadFileID = LeadFileID[:25]
             
-        # Create new oject of NewOrderInfo model
-        order_info = NewOrderInfo.objects.create(
+        # Create new object of NewOrderList model
+        order_list = NewOrderList.objects.create(
             LeadFileID=LeadFileID,
             Carrier=CarrierName,
+            Total_DID_CNT=0,
+            Sel_States="",
             PR_Date=curetime.strftime("%Y-%m-%d"),
             FileName=filename,
             OrderComplete="N",
         )
-        order_info.save()
         
         # Store LeadFileID, and FileName in session
         request.session['LeadFileID'] = LeadFileID
@@ -243,10 +272,10 @@ def Create_DIDOrdrForm2(request):
             return render(request, 'DID_OrderForm-1a.html', {})
         
         if selected_option == "New":
-            # Get objects from NEW PseudoCID's table and filter by selected Carrier
-            pseudo_records = NewPseudoCID.objects.filter(Carrier=CarrierName, Sales_Type=selected_SalesType, Status="I").order_by('PseudoCID')
-            # Get objects from NewClientInfo table
-            clients = NewClientInfo.objects.filter(Sales_Type=selected_SalesType)
+            # Get objects from MPIPseudoCIDs table and filter by selected Carrier
+            pseudo_records = MPIPseudoCIDs.objects.filter(Carrier=CarrierName, Sales_Type=selected_SalesType, Status="I").order_by('PseudoCID')
+            # Get objects from MPIClients table
+            clients = MPIClients.objects.filter(Sales_Type=selected_SalesType)
             return render(request, 'DID_OrderForm-2.html', {'pseudo_records':pseudo_records, 'clients':clients})
         else:
             pseudo_records = ClientList.objects.filter(Carrier=CarrierName, Sales_Type=selected_SalesType).order_by('PseudoCID')    
@@ -259,8 +288,8 @@ def Create_DIDOrdrForm2(request):
 # 
 def Create_DIDOrdrForm2a(request):
     if request.user.is_authenticated:
-        order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
-        CarrierName=order_info.Carrier
+        order_list = NewOrderList.objects.get(LeadFileID=request.session.get('LeadFileID'))
+        CarrierName=order_list.Carrier
 
         # Get PseudoCID type, Sales Type and Carrier
         selected_option = request.POST.get('pseudoCID_options')
@@ -268,10 +297,10 @@ def Create_DIDOrdrForm2a(request):
         request.session['SalesType'] = selected_SalesType        
         
         if selected_option == "New":
-            # Get objects from NEW PseudoCID's table and filter by selected Carrier
-            pseudo_records = NewPseudoCID.objects.filter(Carrier=CarrierName, Sales_Type=selected_SalesType).order_by('PseudoCID')
-            # Get objects from NewClientInfo table
-            clients = NewClientInfo.objects.filter(Sales_Type=selected_SalesType)
+            # Get objects from MPIPseudoCIDs table and filter by selected Carrier
+            pseudo_records = MPIPseudoCIDs.objects.filter(Carrier=CarrierName, Sales_Type=selected_SalesType).order_by('PseudoCID')
+            # Get objects from MPIClients table
+            clients = MPIClients.objects.filter(Sales_Type=selected_SalesType)
             return render(request, 'DID_OrderForm-2.html', {'pseudo_records':pseudo_records, 'clients':clients})
         else:
             pseudo_records = ClientList.objects.filter(Carrier=CarrierName, Sales_Type=selected_SalesType).order_by('PseudoCID')
@@ -282,42 +311,55 @@ def Create_DIDOrdrForm2a(request):
         return redirect('home')
 
 
-
 # Get amount of DIDs and select PseudoCIDs
 def Create_DIDOrdrForm3(request):
     if request.user.is_authenticated:
-        # Divide this count by number of 'selected_pseudoCIDs'
+        # Get the number DID's user requested
         Total_DIDs = request.POST.get('DIDcnt')
         
-        # retrieve the relevant NewOrderInfo object using LeadFileID
-        order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
+        # retrieve the relevant NewOrderList object using LeadFileID
+        order_list = NewOrderList.objects.get(LeadFileID=request.session.get('LeadFileID'))
 
-        # Update object with the new value of DID_CNT field
-        order_info.Total_DID_CNT = Total_DIDs
-        order_info.save()
+        # Update object with the new value to DID_CNT field
+        order_list.Total_DID_CNT = Total_DIDs
+        order_list.save()
         
-        # create a new object of NewOrderPseudoCID model and associate with the NewOrderInfo object            
+        # Get list of selected PseudoCIDs
         selected_pseudoCIDs = request.POST.getlist('selected_pseudoCIDs[]')
         
-        # Validate how many PseudoCIDs were selected
+        # Validate how many PseudoCIDs were selected, then delete `NewOrderList` if not valid selection
         Tot_Sel_PseudoCIDs = len(selected_pseudoCIDs)
         if Tot_Sel_PseudoCIDs < 1:
-            order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
-            order_info.delete()
+            order_file_name = request.session.get('OrderFileName')
+            # Retrieve all NewOrderList instances with the matching OrderFileName
+            matching_order_lists = NewOrderList.objects.filter(FileName=order_file_name)
+
+            # Iterate through each matching NewOrderList instance
+            for matching_order_list in matching_order_lists:
+                # Delete associated NewOrderListData instances
+                matching_order_list.pseudo_cids.all().delete()
+                                
+                # Delete the NewOrderList instance
+                matching_order_list.delete()                
+            
             messages.success(request, "No PseudoCIDs were selected for your Order Form!  Please try again...")
             return redirect('home')
         
-        # Get individual DID totals for each PseudoCID selected
+        # Create a list of NewOrderListData instances to be bulk created
+        new_order_list_data_instances = []
+        
+        # Calculate idivdual DID counts for each selected PseudoCID
         DIDcnts =  int(Total_DIDs) / int(Tot_Sel_PseudoCIDs)
         for value in selected_pseudoCIDs:
             data = value.split(' ', 1)
             pseudoCID=data[0]
             client=data[1]
-            clients = NewClientInfo.objects.filter(Client_Description=client, Sales_Type=request.session.get('SalesType'))
+            clients = MPIClients.objects.filter(Client_Description=client, Sales_Type=request.session.get('SalesType'))
 
+            # Create new object of NewOrderListData model and associate with the NewOrderList object            
             for cinfo in clients:
-                NewOrderPseudoCID.objects.create(
-                    LeadFileID=order_info.LeadFileID,
+                new_order_list_data_instance = NewOrderListData(
+                    LeadFileID=order_list.LeadFileID,
                     PseudoCID=pseudoCID,
                     Client_Description=client,
                     Sales_Type=cinfo.Sales_Type,
@@ -326,8 +368,16 @@ def Create_DIDOrdrForm3(request):
                     InBnd_TranNo=cinfo.InBnd_TranNo,
                     VoiceMail=cinfo.VoiceMail,
                     DID_CNT=DIDcnts,
-                    order_info=order_info
-                ).save()
+                    order_list=order_list,  # Explicitly set the ForeignKey                    
+                )
+                new_order_list_data_instances.append(new_order_list_data_instance)
+
+        # Explicitly commit the transaction before bulk creating instances
+        transaction.commit()
+        
+        # Use transaction.atomic() to ensure data integrity
+        with transaction.atomic():
+            NewOrderListData.objects.bulk_create(new_order_list_data_instances)
 
         states = States.objects.all()
         return render(request, 'DID_OrderForm-4.html', {'states':states})
@@ -342,14 +392,14 @@ def Create_DIDOrdrForm4(request):
         if request.method == 'POST':
             Total_DIDs = request.POST.get('DIDcnt')
             
-            # retrieve the relevant NewOrderInfo object using LeadFileID
-            order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
-
+            # retrieve the relevant NewOrderList object using LeadFileID
+            order_list = NewOrderList.objects.get(LeadFileID=request.session.get('LeadFileID'))
+            
             # Update object with the new value of DID_CNT field
-            order_info.Total_DID_CNT = Total_DIDs
-            order_info.save()
+            order_list.Total_DID_CNT = Total_DIDs
+            order_list.save()
 
-            # create a new object of NewOrderPseudoCID model and associate with the NewOrderInfo object            
+            # create a new object of NewOrderListData model and associate with the NewOrderLis object
             selected_pseudoCIDs = request.POST.getlist('selected_pseudoCIDs[]')
             selected_clients = request.POST.getlist('selected_clients[]')
                         
@@ -357,28 +407,51 @@ def Create_DIDOrdrForm4(request):
             Tot_Sel_PseudoCIDs = len(selected_pseudoCIDs)
             Tot_Sel_Clients = len(selected_clients)
             if Tot_Sel_PseudoCIDs < 1:
-                order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
-                order_info.delete()
+                order_file_name = request.session.get('OrderFileName')
+                # Retrieve all NewOrderList instances with the matching OrderFileName
+                matching_order_lists = NewOrderList.objects.filter(FileName=order_file_name)
+
+                # Iterate through each matching NewOrderList instance
+                for matching_order_list in matching_order_lists:
+                    # Delete associated NewOrderListData instances
+                    matching_order_list.pseudo_cids.all().delete()
+                                    
+                    # Delete the NewOrderList instance
+                    matching_order_list.delete()                
+                
                 messages.success(request, "No PseudoCIDs were selected for your Order Form!  Please try again...")
                 return redirect('home')
 
             if Tot_Sel_Clients < 1:
-                order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
-                order_info.delete()
+                order_file_name = request.session.get('OrderFileName')
+                # Retrieve all NewOrderList instances with the matching OrderFileName
+                matching_order_lists = NewOrderList.objects.filter(FileName=order_file_name)
+
+                # Iterate through each matching NewOrderList instance
+                for matching_order_list in matching_order_lists:
+                    # Delete associated NewOrderListData instances
+                    matching_order_list.pseudo_cids.all().delete()
+                                    
+                    # Delete the NewOrderList instance
+                    matching_order_list.delete()                
+                
                 messages.success(request, "No Clients were selected for your Order Form!  Please try again...")
                 return redirect('home')
 
-            # Get individual DID totals for each PseudoCID selected
+            # Get individual DID counts for each selected PseudoCID
             DIDcnts =  int(Total_DIDs) / int(Tot_Sel_PseudoCIDs)
 
+            # Create a list of NewOrderListData instances to be bulk created
+            new_order_list_data_instances = []
+            
             # Cycle through the selected clients
             client_iter = itertools.cycle(selected_clients)
             for idx, pseudo_cid in enumerate(selected_pseudoCIDs):
                 client_desc = next(client_iter)
-                clients = NewClientInfo.objects.filter(Client_Description=client_desc, Sales_Type=request.session.get('SalesType'))
+                clients = MPIClients.objects.filter(Client_Description=client_desc, Sales_Type=request.session.get('SalesType'))
                 for cinfo in clients:
-                    NewOrderPseudoCID.objects.create(
-                        LeadFileID=order_info.LeadFileID,
+                    new_order_list_data_instance = NewOrderListData(
+                        LeadFileID=order_list.LeadFileID,
                         PseudoCID=pseudo_cid,
                         Client_Description=client_desc,
                         Sales_Type=cinfo.Sales_Type,
@@ -387,9 +460,17 @@ def Create_DIDOrdrForm4(request):
                         InBnd_TranNo=cinfo.InBnd_TranNo,
                         VoiceMail=cinfo.VoiceMail,
                         DID_CNT=DIDcnts,
-                        order_info=order_info
-                    ).save()
+                        order_list=order_list,  # Explicitly set the ForeignKey
+                    )
+                    new_order_list_data_instances.append(new_order_list_data_instance)
             
+            # Explicitly commit the transaction before bulk creating instances
+            transaction.commit()
+
+            # Use transaction.atomic() to ensure data integrity
+            with transaction.atomic():
+                NewOrderListData.objects.bulk_create(new_order_list_data_instances)
+
             states = States.objects.all()
             return render(request, 'DID_OrderForm-4.html', {'states':states})
         else:
@@ -407,19 +488,33 @@ def Create_DIDOrdrForm5(request):
 
             # Validate if States were selected
             if len(selected_states) < 1:
-                order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))                
-                order_info.delete()
+                order_file_name = request.session.get('OrderFileName')
+                # Retrieve all NewOrderList instances with the matching OrderFileName
+                matching_order_lists = NewOrderList.objects.filter(FileName=order_file_name)
+
+                # Iterate through each matching NewOrderList instance
+                for matching_order_list in matching_order_lists:
+                    # Delete associated NewOrderListData instances
+                    matching_order_list.pseudo_cids.all().delete()
+                                    
+                    # Delete the NewOrderList instance
+                    matching_order_list.delete()                
+                
                 messages.success(request, "No States were selected for your Order Form!  Please try again...")
                 return redirect('home')
             
-            # Retrieve the relevant NewOrderInfo & NewOrderPseudoCID objects using LeadFileID
-            order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
-            order_pseudoCIDs = NewOrderPseudoCID.objects.filter(LeadFileID=order_info.LeadFileID)
+            # Retrieve the relevant NewOrderList object using LeadFileID
+            order_list_leadfile = NewOrderList.objects.filter(LeadFileID=request.session.get('LeadFileID'))
 
-            state_string = ",".join(selected_states)            
-            order_info.Sel_States = state_string
-            order_info.save()
-            return render(request, 'DID_OrderForm-5.html', {'order_info':order_info, 'order_pseudoCIDs':order_pseudoCIDs})
+            state_string = ",".join(selected_states)                
+            for order_list in order_list_leadfile:
+                order_list.Sel_States = state_string
+                order_list.save()
+
+            # Retrieve related NewOrderListData instances using the related name 'FileName'
+            order_list_data = NewOrderListData.objects.filter(order_list__FileName=request.session.get('OrderFileName'))
+
+            return render(request, 'DID_OrderForm-5.html', {'order_list_data': order_list_data})
         else:
             messages.success(request, "This view only accepts POST request.")
             return redirect('home')
@@ -432,17 +527,27 @@ def DID_OrderForm(request):
     if request.user.is_authenticated:
         if request.method == "POST":
             resp = request.POST.get('action')
-            order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))            
+            order_list = NewOrderList.objects.get(LeadFileID=request.session.get('LeadFileID'))            
             if resp == 'complete':
                 return redirect(reverse('DIDOrderForm_Results'))
             elif resp == 'add_to_order':
-                order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
-                order_info.OrderComplete="N"
+                order_list.OrderComplete = "N"
+                order_list.save()
                 return redirect(reverse('DID_OrderForm-2'))
             elif resp == 'cancel':
-                order_info = NewOrderInfo.objects.get(LeadFileID=request.session.get('LeadFileID'))
-                order_info.delete()
-                messages.success(request, "DID Order Form has been Canceled and deleted...")                
+                order_file_name = request.session.get('OrderFileName')
+                # Retrieve all NewOrderList instances with the matching OrderFileName
+                matching_order_lists = NewOrderList.objects.filter(FileName=order_file_name)
+                
+                # Iterate through each matching NewOrderList instance
+                for matching_order_list in matching_order_lists:
+                    # Delete associated NewOrderListData instances
+                    matching_order_list.pseudo_cids.all().delete()
+                    
+                    # Delete the NewOrderList instance
+                    matching_order_list.delete()
+                
+                messages.success(request, "DID Order Form has been Canceled and deleted...")
             else:
                 messages.success(request, "File has been downloaded - Check local PC 'downloads' folder")                
             
@@ -459,11 +564,10 @@ def DID_OrderForm(request):
 def DIDOrderFrm_Results(request):
     if request.user.is_authenticated:
         data = []
-
-        order_info = NewOrderInfo.objects.filter(FileName=request.session.get('OrderFileName'))
-        for OI_record in order_info:
-            order_pseudoCIDs = NewOrderPseudoCID.objects.filter(LeadFileID=OI_record.LeadFileID)            
-            for pseudoCID in order_pseudoCIDs:
+        order_list = NewOrderList.objects.filter(FileName=request.session.get('OrderFileName'))
+        for OI_record in order_list:
+            order_list_data = NewOrderListData.objects.filter(order_list__LeadFileID=OI_record.LeadFileID)
+            for pseudoCID in order_list_data:
                 for x in range(pseudoCID.DID_CNT):
                     state_list = OI_record.Sel_States.split(",")
                     state = state_list[x % len(state_list)]
@@ -505,6 +609,7 @@ def GetDID_OrderFormInfo(request):
         return redirect('home')
 
 
+#
 def Load_DID_Order(request):
     if request.user.is_authenticated:
         if request.method == 'POST' and request.FILES['excel_file']:
@@ -530,17 +635,17 @@ def Load_DID_Order(request):
                     group_df = group_df.sample(frac=1, random_state=random.randint(0, 100))
                     mixed_df = pd.concat([mixed_df, group_df])
                 
-                # Retrieve NewOrderInfo by LeadFileID
+                # Retrieve NewOrderList by LeadFileID
                 LeadF_ID = mixed_df['LeadID'].unique()
                 if len(LeadF_ID) > 0:
                     DID_OrderInfo = []
                     for LF_ID in LeadF_ID:
-                        # Retrieve NewOrderInfo & NewOrderPseudoCID by LeadFileID
-                        NO_Info = NewOrderInfo.objects.filter(LeadFileID=LF_ID)
-                        NO_PseudoCIDs = NewOrderPseudoCID.objects.filter(LeadFileID=LF_ID)
-                        if len(NO_Info) > 0 and len(NO_PseudoCIDs) > 0:
-                            for info in NO_Info:
-                                for data in NO_PseudoCIDs:
+                        # Retrieve NewOrderList & NewOrderListData by LeadFileID
+                        order_list = NewOrderList.objects.filter(LeadFileID=LF_ID)
+                        order_list_data = NewOrderListData.objects.filter(order_list__LeadFileID=LF_ID)
+                        if len(order_list) > 0 and len(order_list_data) > 0:
+                            for info in order_list:
+                                for data in order_list_data:
                                     # Retrieve or create the ClientList instance based on PseudoCID
                                     client_list_instance, created = ClientList.objects.get_or_create(PseudoCID=data.PseudoCID)
                                     if created:
@@ -574,13 +679,13 @@ def Load_DID_Order(request):
                                         # then add records to `ClientListData` and `PseudoFile` models
                                         mixed_df['PseudoCID'] = mixed_df['PseudoCID'].astype(str)
                                         df_matching_PseudoCID = mixed_df.loc[mixed_df['PseudoCID'].str.strip() == data.PseudoCID]
-                                        # Use transaction.atomic() to ensure data integrity
+                                        
+                                        # Use transaction.atomic() to ensure data integrity & create empty list
                                         with transaction.atomic():
-                                            # Create an empty list
                                             client_list_data_instances = []
 
+                                        # Fetch the corresponding ClientList instance based on PseudoCID
                                         for idx, row in df_matching_PseudoCID.iterrows():
-                                            # Fetch the corresponding ClientList instance based on PseudoCID
                                             client_list_instance, created = ClientList.objects.get_or_create(PseudoCID=row['PseudoCID'])
                                             
                                             # Add records to ClientListData model with ForeignKey reference to ClientList instance
@@ -635,13 +740,13 @@ def Load_DID_Order(request):
         return redirect('home')
 
 
-# Create PseudoCID ADD/Delete files to upload to Randy's website
+# Create PseudoCID "ADD" file to upload to Randy's website
 def Create_Add_PseudoFile(request):
     if request.user.is_authenticated:
         if request.method == 'POST':
             # use this for testing Archive process rather than `curetime` or use 30 days back from current date
             # Make sure to update other lines of code that use `curetime` with `purgedate`
-            #purgedate = datetime(2023, 5, 30)
+            # purgedate = datetime(2023, 5, 30)
             curetime = datetime.now()            
             PseudoAdd_FileName = request.session.get('PseudoAddFileName')
             # Create a response object with appropriate CSV headers
@@ -668,11 +773,11 @@ def Create_Add_PseudoFile(request):
             if PseudoFile_Archive.exists():
                 PseudoFile_Archive.delete()
                 
-            # Set records to "ACTIVE" in `NewPseudoCID`, `ClientList` and `ClientListData` models
+            # Set records to "ACTIVE" in `MPIPseudoCIDs`, `ClientList` and `ClientListData` models
             for pseudo_record in PseudoFile_PseudoCIDs:
                 pseudo_cid = pseudo_record['PseudoCID']
-                # Set records to "Active" in `NewPseudoCID`
-                record_update = NewPseudoCID.objects.filter(PseudoCID=pseudo_cid)
+                # Set records to "Active" in `MPIPseudoCIDs`
+                record_update = MPIPseudoCIDs.objects.filter(PseudoCID=pseudo_cid)
                 if record_update.exists():
                     record_update.update(Status='A')
                 
@@ -689,7 +794,7 @@ def Create_Add_PseudoFile(request):
         messages.success(request, "Must be logged in...")
         return redirect('home')
 
-#
+# Display list of MPI Client names with PseudoCIDs to select for deletion
 def delete_pseudoCID(request):
     if request.user.is_authenticated:
         records = ClientList.objects.all().order_by('PseudoCID')
@@ -698,7 +803,8 @@ def delete_pseudoCID(request):
         messages.success(request, "You Must Be Logged In To View Records...")
         return redirect('home')
 
-#
+
+# Display list of selected Client names with PseudoCIDs to confirm deletion
 def delete_results(request):
     if request.user.is_authenticated:
         if request.method == 'POST':
@@ -785,7 +891,7 @@ def delete_confirm(request):
         return redirect('home')
 
 
-# Create PseudoCID "Delete file" to upload to Randy's website
+# Create PseudoCID "Delete" file to upload to Randy's website
 def Create_Del_PseudoFile(request):
     if request.user.is_authenticated:
         if request.method == 'POST':
@@ -867,7 +973,7 @@ def Create_Del_PseudoFile(request):
                 response = HttpResponse(zip_file.getvalue(), content_type='application/zip')
                 response['Content-Disposition'] = f'attachment; filename="{zipfilename}"'
 
-                # Delete Records from `ClientList` and `ClientListData` & Update Status in `NewPseudoCID`
+                # Delete Records from `ClientList`, `ClientListData` & Update Status in `MPIPseudoCIDs`
                 for pseudoCID_Rec in selected_pseudoCIDs:
                     # Retrieve records to delete from ClientList and ClientListData
                     client_list_instances = ClientList.objects.filter(PseudoCID=pseudoCID_Rec)
@@ -879,8 +985,8 @@ def Create_Del_PseudoFile(request):
                     # Delete records from ClientList
                     client_list_instances.delete()
 
-                    # Set records to "INACTIVE" in `NewPseudoCID`
-                    record_update = NewPseudoCID.objects.filter(PseudoCID=pseudoCID_Rec)
+                    # Set records to "INACTIVE" in `MPIPseudoCIDs`
+                    record_update = MPIPseudoCIDs.objects.filter(PseudoCID=pseudoCID_Rec)
                     if record_update.exists():
                         record_update.update(Status='I')
 
@@ -937,25 +1043,6 @@ def SearchResults(request):
         messages.success(request, "Must be logged in...")
         return redirect('home')
 
-
-def ResetInActives(request):
-    if request.user.is_authenticated:
-        # Reset all "In-Active" records to "Active" in ClientList
-        updated_records_client_list = ClientList.objects.filter(Status="In-Active").update(Status='Active')
-
-        # Reset all related "In-Active" records to "Active" in ClientListData
-        updated_records_client_list_data = ClientListData.objects.filter(PseudoCID__Status="In-Active").update(PseudoCID__Status='Active')
-
-        # Retrieve the updated ClientList records
-        client_list_inactive = ClientList.objects.filter(Status="Active")
-
-        #print(record.PseudoCID, record.Status)
-        return render(request, 'Reset_InActives.html', {'client_list_inactive': client_list_inactive, 'updated_records_client_list': updated_records_client_list, 'updated_records_client_list_data': updated_records_client_list_data})        
-    else:
-        messages.success(request, "Must be logged in...")
-        return redirect('home')
-
-
 # 
 def Export_PseudoCID(request):
     if request.user.is_authenticated:
@@ -967,7 +1054,7 @@ def Export_PseudoCID(request):
                 messages.success(request, "No PseudoCIDs were selected!!  Please try again...")
                 return redirect('home')
 
-#            response = PseudoCID_CSV_Download(request, selected_pseudoCIDs)
+            # response = PseudoCID_CSV_Download(request, selected_pseudoCIDs)
             # Create response with CSV content
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = 'attachment; filename="export.csv"'
@@ -978,7 +1065,7 @@ def Export_PseudoCID(request):
                 pseudoCID = value.split(' ', 1)[0]  # Extract the PseudoCID value                
 
                 # Fetch the related ClientList and ClientListData objects in a single query
-                #client_list_queryset = ClientList.objects.filter(PseudoCID__in=selected_pseudoCIDs)
+                # client_list_queryset = ClientList.objects.filter(PseudoCID__in=selected_pseudoCIDs)
                 client_list_queryset = ClientList.objects.filter(PseudoCID=pseudoCID)
 
                 for client_list in client_list_queryset:
@@ -1006,67 +1093,6 @@ def Export_PseudoCID(request):
         messages.error(request, "Must be logged in...")
         return redirect('home')
 
-def ImportCSV_ClientInfo(request):
-    if request.user.is_authenticated:
-        file_path = "C:\Python Development\\ClientInfo.csv"
-        with open(file_path, newline="") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                # Convert 'None' to None for date fields
-                pr_date = datetime.strptime(row['PR_Date'], '%Y-%m-%d') if row['PR_Date'] != 'None' else None
-                last_use_date = datetime.strptime(row['LastUse_Date'], '%Y-%m-%d') if row['LastUse_Date'] != 'None' else None
-                
-                client_info = ClientInfo(
-                    PseudoCID=row["PseudoCID"],
-                    Client_Description=row["Client_Description"],
-                    Client_Code=row["Client_Code"],
-                    PubCode=row["PubCode"],
-                    Sales_Type=row["Sales_Type"],
-                    VoiceMail=row["VoiceMail"],
-                    InBnd_TranNo=row["InBnd_TranNo"],
-                    Carrier=row["Carrier"],
-                    Status=row["Status"],
-                    PR_Date= pr_date,
-                    LastUse_Date=last_use_date,
-                    DID_CNT=row["DID_CNT"],
-                    LeadFileID=row["LeadFileID"],
-                    Notes=row["Notes"],
-                )
-                # Save the object to the database
-                client_info.save()
-            
-        messages.success(request, "Imported CSV to Client Info model...")
-        return redirect('home')
-    else:
-        messages.error(request, "Must be logged in...")
-        return redirect('home')
-
-def ImportCSV_CientPseudoCID(request):
-    if request.user.is_authenticated:
-        file_path = "C:\Python Development\\ClientPseudoCID.csv"
-        with open(file_path, newline="") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                # Convert 'None' to None for date fields
-                deact_date = datetime.strptime(row['Deact_Date'], '%Y-%m-%d') if row['Deact_Date'] != 'None' else None
-                
-                Client_PseudoCID = ClientPseudoCID(
-                    PseudoCID=row["PseudoCID"],
-                    PhoneNo=row["PhoneNo"],
-                    PhnNo_Loc=row["PhnNo_Loc"],
-                    Status=row["Status"],
-                    LeadFileID=row["LeadFileID"],                    
-                    Deact_Date= deact_date,                    
-                )
-                # Save the object to the database
-                Client_PseudoCID.save()
-            
-        
-        messages.success(request, "Imported CSV to ClientPseudoCID model...")
-        return redirect('home')
-    else:
-        messages.error(request, "Must be logged in...")
-        return redirect('home')
 
 # Functions for importing data to "NEW" models
 def ImportCSV_ClientList(request):
@@ -1111,6 +1137,7 @@ def ImportCSV_ClientList(request):
         messages.error(request, "Must be logged in...")
         return redirect('home')
 
+#
 def ImportCSV_ClientListData(request):
     if request.user.is_authenticated:
         file_path = "C:\Python Development\\ClientListData.csv"
@@ -1165,6 +1192,216 @@ def ImportCSV_ClientListData(request):
     else:
         messages.error(request, "Must be logged in...")
         return redirect('home')
+
+#
+def ImportCSV_NewOrderList(request):
+    if request.user.is_authenticated:
+        file_path = "C:\Python Development\\NewOrderList.csv"
+        with open(file_path, newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                # Convert 'None' to None for date fields
+                pr_date = datetime.strptime(row['PR_Date'], '%Y-%m-%d') if row['PR_Date'] != 'None' else None
+
+                # Check if a NewOrderList instance with the LeadFileID already exists
+                try:
+                    neworder_list_instance = NewOrderList.objects.get(LeadFileID=row["LeadFileID"])
+                    print("Found NewOrderList instance:", neworder_list_instance)
+                except NewOrderList.DoesNotExist:
+                    print("NewOrderList instance not found. Creating a new one...")
+                    neworder_list_instance = NewOrderList.objects.create(LeadFileID=row["LeadFileID"])
+                    print("New NewOrderList instance created:", neworder_list_instance)
+
+                # Update the attributes of the existing or newly created NewOrderList instance
+                neworder_list_instance.Carrier = row["Carrier"]
+                neworder_list_instance.Total_DID_CNT = row["Total_DID_CNT"]
+                neworder_list_instance.Sel_States = row["Sel_States"]
+                neworder_list_instance.PR_Date = pr_date
+                neworder_list_instance.FileName = row["FileName"]
+                neworder_list_instance.OrderComplete = row["OrderComplete"]
+                
+                # Save the object to the database
+                neworder_list_instance.save()
+
+        messages.success(request, "Imported CSV data to NewOrderList model...")
+        return redirect('home')
+    else:
+        messages.error(request, "Must be logged in...")
+        return redirect('home')
+
+
+def ImportCSV_NewOrderListData(request):
+    if request.user.is_authenticated:
+        file_path = "C:\Python Development\\NewOrderListData.csv"
+                
+        with open(file_path, newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                # Compare LeadFileIDs
+                leadfileID = row["LeadFileID"]
+
+                # Fetch the corresponding NewOrderList instance based on LeadFileID
+                neworder_list_instance, created = NewOrderList.objects.get_or_create(LeadFileID=leadfileID)                
+
+                # Create NewOrderListData instance and associate with the NewOrderList instance
+                neworder_list_data_instance = NewOrderListData(
+                    order_list=neworder_list_instance,  # Associate with the NewOrderList instance
+                    PseudoCID=row["PseudoCID"],
+                    Client_Description=row["Client_Description"],
+                    Sales_Type=row["Sales_Type"],
+                    Client_Code = row["Client_Code"],
+                    PubCode = row["PubCode"],
+                    InBnd_TranNo = row["InBnd_TranNo"],
+                    VoiceMail = row["VoiceMail"],
+                    DID_CNT = row["DID_CNT"],
+                )
+                
+                # Save the NewOrderListData instance to the database
+                neworder_list_data_instance.save()
+                
+        messages.success(request, "Imported CSV data to NewOrderListData model...")
+        return redirect('home')
+    else:
+        messages.error(request, "Must be logged in...")
+        return redirect('home')
+
+def ImportCSV_MPIPseudoCIDs(request):
+    if request.user.is_authenticated:
+        file_path = "C:\Python Development\\MPIPseudoCIDs.csv"
+        
+        with open(file_path, newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                
+                MPI_PseudoCIDs = MPIPseudoCIDs(
+                    PseudoCID=row["PseudoCID"],
+                    Sales_Type=row["Sales_Type"],
+                    Carrier=row["Carrier"],
+                    Status=row["Status"],
+                )
+                # Save the object to the database
+                MPI_PseudoCIDs.save()
+                
+        messages.success(request, "Imported CSV data to MPIPseudoCIDs model...")
+        return redirect('home')
+    else:
+        messages.error(request, "Must be logged in...")
+        return redirect('home')
+
+
+def ImportCSV_MPIClients(request):
+    if request.user.is_authenticated:
+        file_path = "C:\Python Development\\MPIClients.csv"
+        
+        with open(file_path, newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                
+                MPI_Clients = MPIClients(
+                    Client_Description=row["Client_Description"],
+                    Sales_Type=row["Sales_Type"],
+                    Client_Code=row["Client_Code"],
+                    PubCode=row["PubCode"],
+                    InBnd_TranNo=row["InBnd_TranNo"],
+                    VoiceMail=row["VoiceMail"],                    
+                )
+                # Save the object to the database
+                MPI_Clients.save()
+                
+        messages.success(request, "Imported CSV data to MPIClients model...")
+        return redirect('home')
+    else:
+        messages.error(request, "Must be logged in...")
+        return redirect('home')
+
+
+# This function can be deleted once new model `ClientList` is in production
+# Make sure to remove from `admin.py`, `models.py` and import definitions
+# def ImportCSV_ClientInfo(request):
+#     if request.user.is_authenticated:
+#         file_path = "C:\Python Development\\ClientInfo.csv"
+#         with open(file_path, newline="") as csvfile:
+#             reader = csv.DictReader(csvfile)
+#             for row in reader:
+#                 # Convert 'None' to None for date fields
+#                 pr_date = datetime.strptime(row['PR_Date'], '%Y-%m-%d') if row['PR_Date'] != 'None' else None
+#                 last_use_date = datetime.strptime(row['LastUse_Date'], '%Y-%m-%d') if row['LastUse_Date'] != 'None' else None
+                
+#                 client_info = ClientInfo(
+#                     PseudoCID=row["PseudoCID"],
+#                     Client_Description=row["Client_Description"],
+#                     Client_Code=row["Client_Code"],
+#                     PubCode=row["PubCode"],
+#                     Sales_Type=row["Sales_Type"],
+#                     VoiceMail=row["VoiceMail"],
+#                     InBnd_TranNo=row["InBnd_TranNo"],
+#                     Carrier=row["Carrier"],
+#                     Status=row["Status"],
+#                     PR_Date= pr_date,
+#                     LastUse_Date=last_use_date,
+#                     DID_CNT=row["DID_CNT"],
+#                     LeadFileID=row["LeadFileID"],
+#                     Notes=row["Notes"],
+#                 )
+#                 # Save the object to the database
+#                 client_info.save()
+            
+#         messages.success(request, "Imported CSV to Client Info model...")
+#         return redirect('home')
+#     else:
+#         messages.error(request, "Must be logged in...")
+#         return redirect('home')
+
+# #
+# # This function can be deleted once new model `ClientListData` is in production
+# # Make sure to remove from `admin.py`, `models.py` and import definitions
+# def ImportCSV_CientPseudoCID(request):
+#     if request.user.is_authenticated:
+#         file_path = "C:\Python Development\\ClientPseudoCID.csv"
+#         with open(file_path, newline="") as csvfile:
+#             reader = csv.DictReader(csvfile)
+#             for row in reader:
+#                 # Convert 'None' to None for date fields
+#                 deact_date = datetime.strptime(row['Deact_Date'], '%Y-%m-%d') if row['Deact_Date'] != 'None' else None
+                
+#                 Client_PseudoCID = ClientPseudoCID(
+#                     PseudoCID=row["PseudoCID"],
+#                     PhoneNo=row["PhoneNo"],
+#                     PhnNo_Loc=row["PhnNo_Loc"],
+#                     Status=row["Status"],
+#                     LeadFileID=row["LeadFileID"],                    
+#                     Deact_Date= deact_date,                    
+#                 )
+#                 # Save the object to the database
+#                 Client_PseudoCID.save()
+            
+        
+#         messages.success(request, "Imported CSV to ClientPseudoCID model...")
+#         return redirect('home')
+#     else:
+#         messages.error(request, "Must be logged in...")
+#         return redirect('home')
+
+
+# This function may be deleted... Was used for testing. 
+# def ResetInActives(request):
+#     if request.user.is_authenticated:
+#         # Reset all "In-Active" records to "Active" in ClientList
+#         updated_records_client_list = ClientList.objects.filter(Status="In-Active").update(Status='Active')
+
+#         # Reset all related "In-Active" records to "Active" in ClientListData
+#         updated_records_client_list_data = ClientListData.objects.filter(PseudoCID__Status="In-Active").update(PseudoCID__Status='Active')
+
+#         # Retrieve the updated ClientList records
+#         client_list_inactive = ClientList.objects.filter(Status="Active")
+
+#         #print(record.PseudoCID, record.Status)
+#         return render(request, 'Reset_InActives.html', {'client_list_inactive': client_list_inactive, 'updated_records_client_list': updated_records_client_list, 'updated_records_client_list_data': updated_records_client_list_data})        
+#     else:
+#         messages.success(request, "Must be logged in...")
+#         return redirect('home')
+
+
 
 # # Test function used to review and test `form`. Remove once testing complete
 # def addnew(request):

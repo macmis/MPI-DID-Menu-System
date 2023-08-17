@@ -17,14 +17,14 @@
             </tr>
         </thead>
         <tbody>
-            {% if order_pseudoCIDs %}
-                {% for record in order_pseudoCIDs %}
+            {% if order_list_data %}
+                {% for record in order_list_data %}
                     <tr>            
                         <td>{{ record.PseudoCID }}</td>
                         <td>{{ record.Client_Description }}</td>
-                        <td>{{ order_info.Sel_States }}</td>
+                        <td>{{ record.order_list.Sel_States }}</td>
                         <td>{{ record.DID_CNT }}</td>                    
-                        <td>{{ order_info.Carrier }}</td>
+                        <td>{{ record.order_list.Carrier }}</td>
                     </tr>
                 {% endfor %}
             {% endif %}
