@@ -29,25 +29,27 @@
                     <th scope="col">Carrier</th>
                 </tr>
             </thead>
-            <tbody> 
-                {% for record_C1, record_C2 in records_carrier1|zip_lists:records_carrier2 %}
-                    <tr>
-                        <td><a href="{% url 'pseudoCID' record_C1.PseudoCID %}">{{ record_C1.PseudoCID }}</a></td>
-                        <td>{{ record_C1.Client_Description }}</td> 
-                        <td>{{ record_C1.Sales_Type }}</td>
-                        <td><a href="{% url 'edit_lastuse_date' record_C1.PseudoCID %}">{{ record_C1.LastUse_Date }}</a></td>
-                        <td>{{ record_C1.PR_Date }}</td> 
-                        <td>{{ record_C1.DID_CNT }}</td> 
-                        <td>{{ record_C1.Carrier }}</td> 
-                        <th></th>
-                        <td><a href="{% url 'pseudoCID' record_C2.PseudoCID %}">{{ record_C2.PseudoCID }}</a></td>
-                        <td>{{ record_C2.Client_Description }}</td> 
-                        <td>{{ record_C2.Sales_Type }}</td> 
-                        <td><a href="{% url 'edit_lastuse_date' record_C2.PseudoCID %}">{{ record_C2.LastUse_Date }}</a></td>
-                        <td>{{ record_C2.PR_Date }}</td> 
-                        <td>{{ record_C2.DID_CNT }}</td> 
-                        <td>{{ record_C2.Carrier }}</td>
-                    </tr>
+            <tbody>
+                {% for record_pair in combined_records %}
+                    {% with record_C1=record_pair.0 record_C2=record_pair.1 %}
+                        <tr>
+                            <td>{% if record_C1 %}<a href="{% url 'pseudoCID' record_C1.PseudoCID %}">{{ record_C1.PseudoCID }}</a>{% endif %}</td>
+                            <td>{% if record_C1 %}{{ record_C1.Client_Description }}{% endif %}</td>  
+                            <td>{% if record_C1 %}{{ record_C1.Sales_Type }}{% endif %}</td>
+                            <td>{% if record_C1 %}<a href="{% url 'edit_lastuse_date' record_C1.PseudoCID %}">{{ record_C1.LastUse_Date }}</a>{% endif %}</td>
+                            <td>{% if record_C1 %}{{ record_C1.PR_Date }}{% endif %}</td>                        
+                            <td>{% if record_C1 %}{{ record_C1.DID_CNT }}{% endif %}</td>                        
+                            <td>{% if record_C1 %}{{ record_C1.Carrier }}{% endif %}</td>                        
+                            <th></th>
+                            <td>{% if record_C2 %}<a href="{% url 'pseudoCID' record_C2.PseudoCID %}">{{ record_C2.PseudoCID }}</a>{% endif %}</td>                        
+                            <td>{% if record_C2 %}{{ record_C2.Client_Description }}{% endif %}</td>
+                            <td>{% if record_C2 %}{{ record_C2.Sales_Type }}{% endif %}</td>
+                            <td>{% if record_C2 %}<a href="{% url 'edit_lastuse_date' record_C2.PseudoCID %}">{{ record_C2.LastUse_Date }}</a>{% endif %}</td>                                                
+                            <td>{% if record_C2 %}{{ record_C2.PR_Date }}{% endif %}</td>
+                            <td>{% if record_C2 %}{{ record_C2.DID_CNT }}{% endif %}</td>                        
+                            <td>{% if record_C2 %}{{ record_C2.Carrier }}{% endif %}</td>
+                        </tr>
+                    {% endwith %}                        
                 {% endfor %}
             </tbody>
         </table>
@@ -81,6 +83,15 @@
             </tbody>
         </table>
     {% endif %}
+    <form method="post" action="{% url 'ExportCSV' %}" class="d-inline">
+        {% csrf_token %}
+
+        <input type="hidden" name="combined_records_json" value="{{ combined_records_json }}">
+                
+        <a href="{% url 'home' %}" class="btn btn-secondary">Back</a>
+        <input type="hidden" name="records_json" value="{{ records_json }}">        
+        <button type="submit" class="btn btn-success">Download Data to CSV</button>
+    </form>
 {% else %}
     <div class="col-md-6 offset-md-3">
         <h1>Login</h1>

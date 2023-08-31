@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
-from django.db.models import Count
+from django.db.models import F, Case, When, Value, CharField, Count
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 from django.http import HttpResponse, HttpResponseNotAllowed, FileResponse
+from django.core import serializers
 from .forms import SignUpForm, LastUseDateEditForm, AddPseudoCIDForm, NewOrderInfoForm, NewOrderPseudoCIDForm
 from datetime import datetime, timedelta
 from .models import States, Carrier, ClientList, ClientListData, NewOrderList, NewOrderListData, MPIPseudoCIDs, MPIClients, PseudoFile, ClientInfo, ClientPseudoCID, NewOrderInfo, NewOrderPseudoCID, NewPseudoCID, NewClientInfo, PhoneRecord
@@ -13,7 +14,8 @@ from io import BytesIO
 from zipfile import ZipFile
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
-import uuid, itertools, csv, random
+import uuid, itertools, csv, random, json
+from itertools import zip_longest
 import pandas as pd
 
 
@@ -38,32 +40,54 @@ def home(request):
             carrier_info_list = Carrier.objects.all()
 
             # Get values for each record in `carrier_info_list` and assign to variables: Carrier-1, Carrier-2
+            # Carrier1 = TouchTone, Carrier2 = CCI
             carrier1 = carrier_info_list[0] if len(carrier_info_list) >= 1 else None
             carrier2 = carrier_info_list[1] if len(carrier_info_list) >= 2 else None
             
             # Perform filters by user selection
             if sort_option == "split_by_carrier_All":
-                client_info_list1 = ClientList.objects.filter(Carrier=carrier1.CarrierName)            
-                client_info_list2 = ClientList.objects.filter(Carrier=carrier2.CarrierName)
+                client_info_list1 = ClientList.objects.filter(Carrier=carrier1.CarrierName).order_by('Client_Description')
+                client_info_list2 = ClientList.objects.filter(Carrier=carrier2.CarrierName).order_by('Client_Description')
             elif sort_option == "split_by_carrier_Res":
-                client_info_list1 = ClientList.objects.filter(Carrier=carrier1.CarrierName, Sales_Type="R")            
-                client_info_list2 = ClientList.objects.filter(Carrier=carrier2.CarrierName, Sales_Type="R")
+                client_info_list1 = ClientList.objects.filter(Carrier=carrier1.CarrierName, Sales_Type="R").order_by('Client_Description')
+                client_info_list2 = ClientList.objects.filter(Carrier=carrier2.CarrierName, Sales_Type="R").order_by('Client_Description')
             elif sort_option == "split_by_carrier_Bus":
-                client_info_list1 = ClientList.objects.filter(Carrier=carrier1.CarrierName, Sales_Type="B")
-                client_info_list2 = ClientList.objects.filter(Carrier=carrier2.CarrierName, Sales_Type="B")
+                client_info_list1 = ClientList.objects.filter(Carrier=carrier1.CarrierName, Sales_Type="B").order_by('Client_Description')
+                client_info_list2 = ClientList.objects.filter(Carrier=carrier2.CarrierName, Sales_Type="B").order_by('Client_Description')
                 
             records_carrier1 = client_info_list1.values('PseudoCID', 'Client_Description', 'Sales_Type', 'LastUse_Date', 'PR_Date', 'DID_CNT', 'Carrier')
             records_carrier2 = client_info_list2.values('PseudoCID', 'Client_Description', 'Sales_Type', 'LastUse_Date', 'PR_Date', 'DID_CNT', 'Carrier')
-            records = None
 
+            # Create seperate QuerySet for Serialize JSON
+            records_json_carrier1 = client_info_list1.values('PseudoCID', 'Client_Description', 'Sales_Type', 'LastUse_Date', 'PR_Date', 'DID_CNT', 'Carrier')
+            records_json_carrier2 = client_info_list2.values('PseudoCID', 'Client_Description', 'Sales_Type', 'LastUse_Date', 'PR_Date', 'DID_CNT', 'Carrier')
+
+            # Convert date fields to string format for Export_CSV function
+            for record in records_json_carrier1:
+                record['LastUse_Date'] = record['LastUse_Date'].strftime('%Y-%m-%d') if record['LastUse_Date'] else None
+                record['PR_Date'] = record['PR_Date'].strftime('%Y-%m-%d')
+
+            for record in records_json_carrier2:
+                record['LastUse_Date'] = record['LastUse_Date'].strftime('%Y-%m-%d') if record['LastUse_Date'] else None
+                record['PR_Date'] = record['PR_Date'].strftime('%Y-%m-%d')
+                        
+            records = None
+            # Combine the two lists of records into pairs using zip_longest
+            combined_records = zip_longest(records_carrier1, records_carrier2)
+            json_combined_records = zip_longest(records_json_carrier1, records_json_carrier2)            
+            combined_records_json = json.dumps(list(json_combined_records))
+
+            # Pass the combined_records list to the template
+            return render(request, 'home.html', {'combined_records': combined_records, 'combined_records_json': combined_records_json, 'carrier1': carrier1, 'carrier2': carrier2, 'filter_selection': filter_selection})
+            
         else:
             filter_selection = sort_option
             if filter_selection == 'sort_by_carrier_All':
-                client_info_list = client_info_list.order_by('Carrier')
+                client_info_list = client_info_list.order_by('Carrier', 'Sales_Type', 'Client_Description')
             elif filter_selection == 'sort_by_carrier_Res':
-                client_info_list = client_info_list.filter(Sales_Type="R").order_by('Carrier')
+                client_info_list = client_info_list.filter(Sales_Type="R").order_by('Carrier', 'Client_Description')
             elif filter_selection == 'sort_by_carrier_Bus':
-                client_info_list = client_info_list.filter(Sales_Type="B").order_by('Carrier')
+                client_info_list = client_info_list.filter(Sales_Type="B").order_by('Carrier', 'Client_Description')
             elif filter_selection == 'sort_by_pseudoCID':
                 client_info_list = client_info_list.order_by('PseudoCID')
             elif filter_selection == 'sort_by_udate':
@@ -72,18 +96,59 @@ def home(request):
                 client_info_list = client_info_list.order_by('PR_Date')
 
             records = client_info_list.values('PseudoCID', 'Client_Description', 'Sales_Type', 'Carrier', 'Status', 'LastUse_Date', 'PR_Date', 'DID_CNT')
+            
+            # Create seperate QuerySet for Serialize JSON
+            records_csv = client_info_list.values('PseudoCID', 'Client_Description', 'Sales_Type', 'Carrier', 'Status', 'LastUse_Date', 'PR_Date', 'DID_CNT')
+
+            # Convert date fields to string format for Export_CSV function
+            for record in records_csv:
+                record['LastUse_Date'] = record['LastUse_Date'].strftime('%Y-%m-%d') if record['LastUse_Date'] else None
+                record['PR_Date'] = record['PR_Date'].strftime('%Y-%m-%d')
+
+            # Serialize the QuerySet - `records_json` used for Export_CSV function
+            records_json = json.dumps(list(records_csv))
+            
             records_carrier1 = None
             records_carrier2 = None
             carrier1 = None
             carrier2 = None
     else:
-        records = client_info_list.values('PseudoCID', 'Client_Description', 'Sales_Type', 'Carrier', 'Status', 'LastUse_Date', 'PR_Date', 'DID_CNT')
+        # First, order by Carrier, then sort Sales_Type with preference for 'R'
+        client_info_list = client_info_list.annotate(
+            sales_type_order=Case(
+                When(Sales_Type='R', then=Value(1)),
+                When(Sales_Type='B', then=Value(2)),
+                default=Value(3),
+                output_field=CharField(),
+            )
+        ).order_by('sales_type_order', 'Carrier', 'Client_Description')
+        
+        records = client_info_list.values(
+            'PseudoCID', 'Client_Description', 'Sales_Type', 'Carrier', 'Status',
+            'LastUse_Date', 'PR_Date', 'DID_CNT'
+        )
+
+        # Create seperate QuerySet for Serialize JSON
+        records_csv = client_info_list.values(
+            'PseudoCID', 'Client_Description', 'Sales_Type', 'Carrier', 'Status',
+            'LastUse_Date', 'PR_Date', 'DID_CNT'
+        )
+        
+        # Convert date fields to string format for Export_CSV function
+        for record in records_csv:
+            record['LastUse_Date'] = record['LastUse_Date'].strftime('%Y-%m-%d') if record['LastUse_Date'] else None
+            record['PR_Date'] = record['PR_Date'].strftime('%Y-%m-%d')
+
+        # Serialize the QuerySet - `records_json` used for Export_CSV function
+        records_json = json.dumps(list(records_csv))
+
         records_carrier1 = None
         records_carrier2 = None
         carrier1 = None
         carrier2 = None
         filter_selection = None
-    
+
+        
     # Check to see if logging in
     if request.method == 'POST':
         username = request.POST['username']
@@ -99,7 +164,7 @@ def home(request):
             return redirect('home')
 
     else:
-        return render(request, 'home.html', {'records':records, 'carrier1':carrier1, 'carrier2':carrier2, 'records_carrier1':records_carrier1, 'records_carrier2':records_carrier2, 'filter_selection': filter_selection})
+        return render(request, 'home.html', {'records':records, 'records_json':records_json, 'carrier1':carrier1, 'carrier2':carrier2, 'records_carrier1':records_carrier1, 'records_carrier2':records_carrier2, 'filter_selection': filter_selection})
 
 
 # Function to handle form submission for editing `LastUse_Date`
@@ -670,8 +735,6 @@ def Load_DID_Order(request):
                                             'Sales_Type': data.Sales_Type,
                                             'Sel_States': info.Sel_States,
                                             'Carrier': info.Carrier,
-                                            # 7/11/23 NEED TO TEST UPDATED DID COUNTS. DELETE ONCE DONE!
-                                            #'Tot_DIDs': info.Total_DID_CNT
                                             'Tot_DIDs': data.DID_CNT
                                         })
                                         
@@ -698,7 +761,8 @@ def Load_DID_Order(request):
                                                 Deact_Date=None
                                             )
                                             client_list_data_instances.append(client_list_data_instance)
-                                            client_list_instance.update_did_cnt()  # Update DID_CNT for the ClientList instance                                     
+                                            # Update DID_CNT for the ClientList instance
+                                            client_list_instance.update_did_cnt()  
                                             
                                             # Add records to `PseudoFile` model
                                             PseudoFile.objects.create(
@@ -874,7 +938,6 @@ def delete_confirm(request):
                         return redirect('home')
 
                 PseudoFile.objects.bulk_create(pseudo_files_to_create)
-                                
                 context = {
                     'client_list_instances': client_list_instances,
                 }
@@ -1003,6 +1066,7 @@ def Create_Del_PseudoFile(request):
         return redirect('home')
 
 
+# 
 def SearchResults(request):
     if request.user.is_authenticated:
         if request.method == "POST":
@@ -1054,18 +1118,25 @@ def Export_PseudoCID(request):
                 messages.success(request, "No PseudoCIDs were selected!!  Please try again...")
                 return redirect('home')
 
-            # response = PseudoCID_CSV_Download(request, selected_pseudoCIDs)
+            # Create PseudoCID Export File Name
+            curetime = datetime.now()
+            etime = curetime.strftime("%H%M%S")
+            Pseudo_ExpFile = "PseudoCID_File-" + etime + ".csv"
+            
             # Create response with CSV content
             response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = 'attachment; filename="export.csv"'
+            response['Content-Disposition'] = f'attachment; filename="{Pseudo_ExpFile}"'
             writer = csv.writer(response)
 
+            writer.writerow([
+                'PseudoCID', 'Client_Description', 'Client_Code', 'PubCode', 'Sales_Type', 'PhoneNo', 'PhnNo_Loc', 'VoiceMail', 'InBnd_TranNo', 'Carrier'
+            ])
+                
             # Loop through the selected PseudoCIDs
             for value in selected_pseudoCIDs:
                 pseudoCID = value.split(' ', 1)[0]  # Extract the PseudoCID value                
 
                 # Fetch the related ClientList and ClientListData objects in a single query
-                # client_list_queryset = ClientList.objects.filter(PseudoCID__in=selected_pseudoCIDs)
                 client_list_queryset = ClientList.objects.filter(PseudoCID=pseudoCID)
 
                 for client_list in client_list_queryset:
@@ -1089,6 +1160,111 @@ def Export_PseudoCID(request):
             # Get all Client Info records
             records = ClientList.objects.all().order_by('PseudoCID')
             return render(request, 'ExportPseudoCID.html', {'records':records})
+    else:
+        messages.error(request, "Must be logged in...")
+        return redirect('home')
+
+
+# Export home screen records to CSV format
+def Export_CSV(request):
+    if request.user.is_authenticated:
+        records_json = request.POST.get('records_json')
+        combined_records_json = request.POST.get('combined_records_json')
+
+        # Create Home Screen CSV file name
+        curetime = datetime.now()
+        etime = curetime.strftime("%H%M%S")
+        CSV_fileName = "HomeScreen-" + etime + ".csv"
+
+        # Create response with CSV content
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{CSV_fileName}"'
+        writer = csv.writer(response)
+        
+        if records_json:
+            writer.writerow([
+                'PseudoCID', 'Client_Description', 'Sales_Type', 'LastUse_Date', 'PR_Date', 'DID_CNT', 'Carrier'
+            ])
+            
+            try:
+                records_list = json.loads(records_json)
+
+                # Get JSON records
+                for record in records_list:
+                    pseudo_cid = record.get('PseudoCID', '')
+                    client_description = record.get('Client_Description', '')
+                    sales_type = record.get('Sales_Type', '')
+                    last_use_date = record.get('LastUse_Date', '')
+                    pr_date = record.get('PR_Date', '')
+                    did_count = record.get('DID_CNT', '')
+                    carrier = record.get('Carrier', '')
+
+                    writer.writerow([
+                        pseudo_cid,
+                        client_description,
+                        sales_type,
+                        last_use_date,
+                        pr_date,
+                        did_count,
+                        carrier   
+                    ])
+
+            except json.JSONDecodeError as e:
+                print("JSON decoding error:", e)
+
+        elif combined_records_json:
+            writer.writerow([
+                'PseudoCID', 'Client_Description', 'Sales_Type', 'LastUse_Date', 'PR_Date', 'DID_CNT', 'Carrier',
+                'PseudoCID', 'Client_Description', 'Sales_Type', 'LastUse_Date', 'PR_Date', 'DID_CNT', 'Carrier'
+            ])
+            
+            try:
+                combined_records_list = json.loads(combined_records_json)
+
+                # Get JSON combined records
+                for record_pair in combined_records_list:
+                    record_C1, record_C2 = record_pair
+
+                    pseudo_cid_C1 = record_C1.get('PseudoCID', '') if record_C1 else ''
+                    client_description_C1 = record_C1.get('Client_Description', '') if record_C1 else ''
+                    sales_type_C1 = record_C1.get('Sales_Type', '') if record_C1 else ''
+                    last_use_date_C1 = record_C1.get('LastUse_Date', '') if record_C1 else ''
+                    pr_date_C1 = record_C1.get('PR_Date', '') if record_C1 else ''
+                    did_count_C1 = record_C1.get('DID_CNT', '') if record_C1 else ''
+                    carrier_C1 = record_C1.get('Carrier', '') if record_C1 else ''
+                    
+                    pseudo_cid_C2 = record_C2.get('PseudoCID', '') if record_C2 else ''
+                    client_description_C2 = record_C2.get('Client_Description', '') if record_C2 else ''
+                    sales_type_C2 = record_C2.get('Sales_Type', '') if record_C2 else ''
+                    last_use_date_C2 = record_C2.get('LastUse_Date', '') if record_C2 else ''
+                    pr_date_C2 = record_C2.get('PR_Date', '') if record_C2 else ''
+                    did_count_C2 = record_C2.get('DID_CNT', '') if record_C2 else ''
+                    carrier_C2 = record_C2.get('Carrier', '') if record_C2 else ''
+
+                    writer.writerow([
+                        pseudo_cid_C1,
+                        client_description_C1,
+                        sales_type_C1,
+                        last_use_date_C1,
+                        pr_date_C1,
+                        did_count_C1,
+                        carrier_C1,
+                        pseudo_cid_C2,
+                        client_description_C2,
+                        sales_type_C2,
+                        last_use_date_C2,
+                        pr_date_C2,
+                        did_count_C2,
+                        carrier_C2
+                    ])
+                    
+            except json.JSONDecodeError as e:
+                print("JSON decoding error:", e)
+            
+
+        messages.success(request, "Exported Home Screen Results to CSV format - Check local PC 'downloads' folder")
+        #return redirect('home')
+        return response
     else:
         messages.error(request, "Must be logged in...")
         return redirect('home')
@@ -1230,6 +1406,7 @@ def ImportCSV_NewOrderList(request):
         return redirect('home')
 
 
+#
 def ImportCSV_NewOrderListData(request):
     if request.user.is_authenticated:
         file_path = "C:\Python Development\\NewOrderListData.csv"
@@ -1265,6 +1442,7 @@ def ImportCSV_NewOrderListData(request):
         messages.error(request, "Must be logged in...")
         return redirect('home')
 
+#
 def ImportCSV_MPIPseudoCIDs(request):
     if request.user.is_authenticated:
         file_path = "C:\Python Development\\MPIPseudoCIDs.csv"
@@ -1289,6 +1467,7 @@ def ImportCSV_MPIPseudoCIDs(request):
         return redirect('home')
 
 
+#
 def ImportCSV_MPIClients(request):
     if request.user.is_authenticated:
         file_path = "C:\Python Development\\MPIClients.csv"
@@ -1314,6 +1493,8 @@ def ImportCSV_MPIClients(request):
         messages.error(request, "Must be logged in...")
         return redirect('home')
 
+    
+    
 
 # This function can be deleted once new model `ClientList` is in production
 # Make sure to remove from `admin.py`, `models.py` and import definitions

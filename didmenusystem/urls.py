@@ -27,6 +27,7 @@ urlpatterns = [
     path('PseudoFile-Add/', views.Create_Add_PseudoFile, name='Create_AddPseudoFile'),
     path('Search_Results/', views.SearchResults, name='Search_Results'),
     path('PseudoCID_Export/', views.Export_PseudoCID, name='ExportPseudoCID'),
+    path('Export_CSV/', views.Export_CSV, name='ExportCSV'),
 
     # Import URLs for new models
     path('ImportCSV_ClientList/', views.ImportCSV_ClientList, name='ImportCSV_ClientList'),
