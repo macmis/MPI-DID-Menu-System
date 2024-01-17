@@ -4,7 +4,7 @@
 <h1> DID Menu System - Create "DELETE-PseudoCID" & "Carrier-Cancelation" Files </h1>
 <br><br>
 <p> Create "PseudoCID Delete Files" & "Carrier Cancelation Form" for the following? </p>
-<form method="POST" action="{% url 'Create_Del_PseudoFile' %}">
+    <form id="downloadForm" method="POST" action="{% url 'Create_Del_PseudoFile' %}">    
     {% csrf_token %}
 
     {% for instance in client_list_instances %}
@@ -34,8 +34,27 @@
         </tbody>
     </table>
     <a href="{% url 'home' %}" class="btn btn-secondary">Cancel</a>
-    <button type="submit" class="btn btn-primary">Download 'DELETE-PseudoCID' & 'Carrier-Cancelation' Files</button>
-    <a href="{% url 'home' %}" class="btn btn-secondary">Finish</a>    
+    <button type="button" id="downloadButton" class="btn btn-primary">Download 'DELETE-PseudoCID' & 'Carrier-Cancelation' Files</button>
+    <a href="{% url 'Delete_Perform' %}" class="btn btn-secondary" id="finishButton">Finish</a>    
 </form>
+
+{% comment %} Java function to prevent pressing "Finish" prior to pressing "Download" button {% endcomment %}
+<script>
+    let downloadButtonClicked = false;
+
+    document.getElementById('downloadButton').addEventListener('click', function() {
+        downloadButtonClicked = true;
+        document.getElementById('downloadForm').submit();
+    });
+
+    document.getElementById('finishButton').addEventListener('click', function(e) {
+        if (!downloadButtonClicked) {
+            e.preventDefault(); // Prevent the default behavior (form submission)
+            alert("Must create 'DELETE-PseudoCID' & 'Carrier-Cancelation' files first!!");
+            // Optionally show a message or perform other actions
+        }
+    });
+</script>
+
 
 {% endblock %}

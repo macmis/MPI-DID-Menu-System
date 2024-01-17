@@ -1,7 +1,7 @@
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django import forms
-from .models import PhoneRecord, NewOrderInfo, NewOrderPseudoCID, ClientList
+from .models import ClientList
 
 class SignUpForm(UserCreationForm):
     first_name = forms.CharField(label="", max_length=50 , widget=forms.TextInput(attrs={'class':'form-control', 'placeholder':'First Name'}))
@@ -41,38 +41,3 @@ class LastUseDateEditForm(forms.ModelForm):
         }
 
 
-# Create Add PseudoCID Form
-class AddPseudoCIDForm(forms.ModelForm):
-    PhoneNo = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"Phone Number", "class":"form-control"}), label="")
-    PseudoCID = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"PseudoCID", "class":"form-control"}), label="")
-    TFN_PrimaryNo = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"YES/NO", "class":"form-control"}), label="")
-    DID_Location = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"DID State Location", "class":"form-control"}), label="")
-    Sales_Type = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"Sales Type", "class":"form-control"}), label="")
-    PubCode = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"Pub Code", "class":"form-control"}), label="")
-    ClientCode = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"Client Code", "class":"form-control"}), label="")
-    Client_Description = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"Client Description", "class":"form-control"}), label="")
-    VoiceMail = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"Client VM Box", "class":"form-control"}), label="")
-    Carrier = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"SIP Carrier", "class":"form-control"}), label="")
-    PR_status = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"PR Status=P", "class":"form-control"}), label="")
-    PR_Date = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"PR Date", "class":"form-control"}), label="")
-    LastUse_Date = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"Last Use Date", "class":"form-control"}), label="")
-    Notes = forms.CharField(required=True, widget=forms.widgets.TextInput(attrs={"placeholder":"Notes", "class":"form-control"}), label="")
-
-    class Meta:
-        model = PhoneRecord
-        exclude = ("user",)
-        
-
-class NewOrderInfoForm(forms.ModelForm):
-    class Meta:
-        model = NewOrderInfo
-        fields = ['LeadFileID', 'Carrier', 'Total_DID_CNT', 'Sel_States', 'PR_Date', 'FileName']
-        widgets = {
-            'PR_Date': forms.DateInput(attrs={'type': 'date'})
-        }
-
-
-class NewOrderPseudoCIDForm(forms.ModelForm):
-    class Meta:
-        model = NewOrderPseudoCID
-        fields = ['LeadFileID', 'PseudoCID', 'Client_Description']

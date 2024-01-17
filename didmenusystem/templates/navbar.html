@@ -13,12 +13,16 @@
                 Admin Tools
               </a>
               <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{% url 'DispArchivedPseudoCIDs' %}">Restore PseudoCID (No older than 30 days) </a></li>                
+                <li><a class="dropdown-item" href="{% url 'Disp_OrderHistory' %}">Display Recent Order Form History (No older than 30 days) </a></li>                                
+{% comment %} Uncomment this code if needing to import data to any of the tables listed below.
                 <li><a class="dropdown-item" href="{% url 'ImportCSV_ClientList' %}">Import CSV Data to NEW model - ClientList </a></li>
                 <li><a class="dropdown-item" href="{% url 'ImportCSV_ClientListData' %}">Import CSV Data to NEW model - ClientListData </a></li>
                 <li><a class="dropdown-item" href="{% url 'ImportCSV_NewOrderList' %}">Import CSV Data to NEW model - NewOrderList </a></li>
                 <li><a class="dropdown-item" href="{% url 'ImportCSV_NewOrderListData' %}">Import CSV Data to NEW model - NewOrderListData </a></li>
                 <li><a class="dropdown-item" href="{% url 'ImportCSV_MPIPseudoCIDs' %}">Import CSV Data to NEW model - MPIPseudoCIDs </a></li>
                 <li><a class="dropdown-item" href="{% url 'ImportCSV_MPIClients' %}">Import CSV Data to NEW model - MPIClients </a></li>
+ {% endcomment %}                
                 <li><a class="dropdown-item" href="{% url 'ExportPseudoCID' %}">Export PseudoCIDs to CSV Format </a></li>
               </ul>
             </li>
@@ -35,7 +39,6 @@
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_Res">Sort by Carrier | Res </a></li>
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_Bus">Sort by Carrier | Bus </a></li>                                
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_pseudoCID">Sort by PseudoCID</a></li>
-{% comment %}                 <li><a class="dropdown-item" href="#">Sort by Date Usage</a></li>                 {% endcomment %}
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_udate">Sort by Date Usage</a></li>
                 <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_prdate">Sort by Purchase Date</a></li>
               </ul>
@@ -47,10 +50,6 @@
             
             <li class="nav-item">
               <a class="nav-link" href="{% url 'Load_DIDOrder' %}">Load DIDs From Carrier</a>
-            </li>
-
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'add_pseudoCID' %}">Add PseudoCID</a>
             </li>
 
             <li class="nav-item">

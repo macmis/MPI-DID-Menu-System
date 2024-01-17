@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1> DID Menu System - DID Order Form History</h1>
+
+<table class="table table-striped table-hover table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th scope="col">PseudoCID</th>
+            <th scope="col">Client Description</th>
+            <th scope="col">Sales Type</th>
+            <th scope="col">States</th>
+            <th scope="col">Total DID's</th>
+            <th scope="col">Purchase Date</th>            
+            <th scope="col">Carrier</th>
+            <th scope="col">File Name</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if order_list_data_records %}
+            {% for record in order_list_data_records %}
+                <tr>            
+                    <td>{{ record.PseudoCID }}</td>
+                    <td>{{ record.Client_Description }}</td>
+                    <td>{{ record.Sales_Type }}</td>                    
+                    <td>{{ record.order_list__Sel_States }}</td>
+                    <td>{{ record.DID_CNT }}</td>
+                    <td>{{ record.order_list__PR_Date }}</td>                    
+                    <td>{{ record.order_list__Carrier }}</td>
+                    <td>{{ record.order_list__FileName }}</td>
+                </tr>
+            {% endfor %}
+        {% endif %}
+    </tbody>
+</table>
+<br/><br/>
+<a href="{% url 'home' %}" class="btn btn-secondary">Back</a>
+
+{% endblock %}

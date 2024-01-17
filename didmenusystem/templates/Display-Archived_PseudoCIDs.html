@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1> DID Menu System - Select Deleted PseudoCID You Wish to Restore</h1>
+<br/><br/>
+<form method="post" action="{% url 'RestorePseudoCID' %}">
+    {% csrf_token %}
+
+    <div class="row">
+        <div class="col-md-6">
+            <br><br><br>
+            Select Archived PseudoCIDs:
+            <br>
+            <label for="selected_pseudoCID"></label>
+            <select id="selected_pseudoCID" name="selected_pseudoCID[]" multiple size="20">
+                <option selected disabled="true">-- Select --</option>
+                {% if records %}
+                    {% for record in records %}
+                        <option value="{{ record.PseudoCID }} {{ record.Client_Description }} {{ record.Deact_Date }}">{{ record.PseudoCID }} - {{ record.Client_Description }} -< Remove Date -->> {{ record.Deact_Date }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+        </div>
+    </div>
+
+    <br/><br/>
+    <button type="submit" class="btn btn-primary">Restore</button>
+    <a href="{% url 'home' %}" class="btn btn-secondary">Cancel</a>    
+</form>
+
+
+{% endblock %}

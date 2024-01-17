@@ -9,6 +9,7 @@
     <table class="table table-striped table-hover table-bordered">
         <thead class="table-dark">
             <tr>
+                <th scope="col">Delete</th>
                 <th scope="col">PseudoCID</th>
                 <th scope="col">Client Description</th>
                 <th scope="col">States</th>
@@ -19,7 +20,8 @@
         <tbody>
             {% if order_list_data %}
                 {% for record in order_list_data %}
-                    <tr>            
+                    <tr>
+                        <td><input type="checkbox" name="selected_records[]" value="{{ record.id }}"></td>
                         <td>{{ record.PseudoCID }}</td>
                         <td>{{ record.Client_Description }}</td>
                         <td>{{ record.order_list.Sel_States }}</td>
@@ -33,7 +35,8 @@
     <div class="button-container">
         <button type="submit" class="btn btn-primary" name="action" value="complete">Complete/Download Order Form</button>
         <button type="submit" class="btn btn-secondary" name="action" value="add_to_order">Add To Order</button>
-        <button type="submit" class="btn btn-secondary" name="action" value="cancel">Delete/Start Over</button>
+        <button type="submit" class="btn btn-secondary" name="action" value="delete">Delete Selected Orders</button>        
+        <button type="submit" class="btn btn-secondary" name="action" value="cancel">Cancel/Start Over</button>
         <button type="submit" class="btn btn-secondary" name="action" value="finish">Finish</button>        
     </div>
 </form>
