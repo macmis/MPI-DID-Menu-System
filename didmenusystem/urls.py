@@ -20,17 +20,23 @@ urlpatterns = [
     path('DID_OrderForm-3/', views.Create_DIDOrdrForm3, name='DID_OrderForm-3'),
     path('DID_OrderForm-4/', views.Create_DIDOrdrForm4, name='DID_OrderForm-4'),
     path('DID_OrderForm-5/', views.Create_DIDOrdrForm5, name='DID_OrderForm-5'),         
-    path('getSelState_Counts/', views.GetDID_OrderFormInfo, name='getSelState_Counts'),    
+    #path('getSelState_Counts/', views.GetDID_OrderFormInfo, name='getSelState_Counts'),    
     path('DID_OrderForm/', views.DID_OrderForm, name='DID_OrderForm'),
     path('DIDOrderFrm_Results/', views.DIDOrderFrm_Results, name='DIDOrderForm_Results'),
+    # Carrier Order Form Load Process
     path('OrderForm-Load/', views.Load_DID_Order, name='Load_DIDOrder'),
     path('PseudoFile-Add/', views.Create_Add_PseudoFile, name='Create_AddPseudoFile'),
+    path('create-add-pseudo-file-results/', views.create_add_pseudo_file_results, name='create_add_pseudo_file_results'),
+    path('download-file/<str:file_name>/', views.download_file, name='download_file'),  
+    path('cleanup-and-finish/<str:file_name>/', views.cleanup_and_finish, name='cleanup_and_finish'),
+    
     path('Search_Results/', views.SearchResults, name='Search_Results'),
     path('PseudoCID_Export/', views.Export_PseudoCID, name='ExportPseudoCID'),
     path('Display-Archived_PseudoCIDs/', views.Display_Archived_PseudoCIDs, name='DispArchivedPseudoCIDs'),
     path('Restore_PseudoCID/', views.Restore_PseudoCID, name='RestorePseudoCID'),
     path('Export_CSV/', views.Export_CSV, name='ExportCSV'),
     path('Display_OrderHist/', views.Disp_Orders, name='Disp_OrderHistory'),
+    path('Select_Clients/', views.FilterBy_Client, name='Client_List'),    
 
     # Import URLs for importing data to new models
     path('ImportCSV_ClientList/', views.ImportCSV_ClientList, name='ImportCSV_ClientList'),

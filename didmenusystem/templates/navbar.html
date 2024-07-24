@@ -29,18 +29,19 @@
 
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                Reformat Home Screen
+                Display Records by
               </a>
               <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="{% url 'home' %}?sort=split_by_carrier_All">Split by Carrier | All </a></li>
-                <li><a class="dropdown-item" href="{% url 'home' %}?sort=split_by_carrier_Res">Split by Carrier | Resi </a></li>                
-                <li><a class="dropdown-item" href="{% url 'home' %}?sort=split_by_carrier_Bus">Split by Carrier | Bus </a></li>                                
-                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_All">Sort by Carrier | All </a></li>
-                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_Res">Sort by Carrier | Res </a></li>
-                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_Bus">Sort by Carrier | Bus </a></li>                                
-                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_pseudoCID">Sort by PseudoCID</a></li>
-                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_udate">Sort by Date Usage</a></li>
-                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_prdate">Sort by Purchase Date</a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=split_by_carrier_All">Split Screen-Carrier | All </a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=split_by_carrier_Res">Split Screen-Carrier | Resi </a></li>                
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=split_by_carrier_Bus">Split Screen-Carrier | Bus </a></li>                                
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_All">Carrier | All </a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_Res">Carrier | Res </a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_carrier_Bus">Carrier | Bus </a></li>                                
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_pseudoCID">PseudoCID</a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_udate">Date Usage</a></li>
+                <li><a class="dropdown-item" href="{% url 'home' %}?sort=sort_by_prdate">Purchase Date</a></li>
+                <li><a class="dropdown-item" href="{% url 'Client_List' %}">Client Description</a></li>   
               </ul>
             </li>
 

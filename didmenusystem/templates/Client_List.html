@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1> DID Menu System - MPI Client Lists </h1>
+<br/><br/>
+<form method="post" action="{% url 'Client_List' %}">
+    {% csrf_token %}
+
+    <div class="row">
+        <div class="col-md-6">
+            <br><br><br>
+            Select Clients you wish to filter by:
+            <br>
+            <label for="selected_clients"></label>
+            <select id="selected_clients" name="selected_clients[]" multiple size="20">
+                <option selected disabled="true">-- Select --</option>
+                {% if records %}
+                    {% for record in records %}
+                        <option value="{{ record.Client_Description }} {{record.Sales_Type}}">{{ record.Client_Description }} - {{ record.Sales_Type }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+        </div>
+    </div>
+
+    <br/><br/>
+    <button type="submit" class="btn btn-primary">Submit</button>
+    <a href="{% url 'home' %}" class="btn btn-secondary">Cancel</a>    
+</form>
+
+{% endblock %}

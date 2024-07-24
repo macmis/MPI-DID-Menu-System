@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
-from django.db.models import F, Case, When, Value, CharField, Count
+from django.conf import settings
+from django.db.models import Case, When, Value, CharField, Q, Count
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
-from django.http import HttpResponse, HttpResponseNotAllowed, FileResponse
+from django.http import HttpResponse, JsonResponse, FileResponse, HttpResponseRedirect, HttpResponseNotAllowed
 from django.core import serializers
 from .forms import SignUpForm, LastUseDateEditForm
 from datetime import datetime, timedelta
@@ -14,16 +15,20 @@ from io import BytesIO
 from zipfile import ZipFile
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
-import uuid, itertools, csv, random, json, re
+import uuid, itertools, csv, random, json, re, os
 from itertools import zip_longest
 import pandas as pd
 
 
 # Create your views here.
 def home(request):
+    # Initialize session variable if not set
+    if 'selected_clients' not in request.session:
+        request.session['selected_clients'] = None
+
     # Get list of Client Info and udpate DID counts for each Client
     client_info_list = ClientList.objects.all()
-    
+        
     # Update DID count by actual number of DID's per PseudoCID
     if len(client_info_list) > 0:
         for client_info in client_info_list:
@@ -31,7 +36,12 @@ def home(request):
 
      # Get selected filter
     sort_option = request.GET.get('sort')
+    selected_clients = request.session.get('selected_clients', None)    
     
+    # Check if "Filter by Client Name" was selected
+    if selected_clients and selected_clients != 'None':
+        sort_option = "filter_by_client"
+        
     # Check if sort option was selected
     if sort_option:
         filter_selection = sort_option[:16]
@@ -93,7 +103,14 @@ def home(request):
                 client_info_list = client_info_list.order_by('-LastUse_Date')
             elif filter_selection == 'sort_by_prdate':
                 client_info_list = client_info_list.order_by('PR_Date')
+            elif filter_selection == 'filter_by_client':
+                filter_conditions = Q()                
+                for client_description, sales_type in selected_clients:        
+                    filter_conditions |= Q(Client_Description=client_description, Sales_Type=sales_type)                    
+                
+                client_info_list = client_info_list.filter(filter_conditions).order_by('Client_Description', 'Sales_Type')
 
+            # Filter records by selected criteria
             records = client_info_list.values('PseudoCID', 'Client_Description', 'Sales_Type', 'Carrier', 'Status', 'LastUse_Date', 'PR_Date', 'DID_CNT')
             
             # Create seperate QuerySet for Serialize JSON
@@ -111,6 +128,8 @@ def home(request):
             records_carrier2 = None
             carrier1 = None
             carrier2 = None
+            sort_option = None
+            request.session['selected_clients'] = None            
     else:
         # First, order by Carrier, then sort Sales_Type with preference for 'R'
         client_info_list = client_info_list.annotate(
@@ -141,12 +160,12 @@ def home(request):
         # Serialize the QuerySet - `records_json` used for Export_CSV function
         records_json = json.dumps(list(records_csv))
 
+        # Initialize variables back to `None`
         records_carrier1 = None
         records_carrier2 = None
         carrier1 = None
         carrier2 = None
         filter_selection = None
-
         
     # Check to see if logging in
     if request.method == 'POST':
@@ -229,7 +248,31 @@ def pseudo_record(request, pseudo):
         messages.success(request, "You Must Be Logged In To View Records...")
         return redirect('home')
 
+# Display list of MPI Clients
+def FilterBy_Client(request):
+    if request.user.is_authenticated:
+        if request.method == "POST":
+            selected_clients = request.POST.getlist('selected_clients[]')
+            parsed_string = []
+            
+            if(selected_clients):
+                for data in selected_clients:
+                    client_description, sales_type = data.rsplit(' ', 1)
+                    parsed_string.append((client_description, sales_type))
+
+                request.session['selected_clients'] = parsed_string
+            else:
+                request.session['selected_clients'] = None
+
+            return redirect('home')
+        else:
+            records = MPIClients.objects.all()
+            return render(request, 'Client_List.html', {'records': records})        
+    else:
+        messages.success(request, "You Must Be Logged In To View Records...")
+        return redirect('home')
     
+
 # 
 def Create_DIDOrdrForm1(request):
     if request.user.is_authenticated:
@@ -660,7 +703,8 @@ def DID_OrderForm(request):
                 filtered_records.update(Status='A')
                 
                 messages.success(request, "File has been downloaded - Check local PC 'downloads' folder")                
-            
+                # Use this example to include file name that was downloaded
+                #messages.success(request, f"Date Usage for {client.PseudoCID} has been updated.")            
             return redirect('home')
         else:
             messages.success(request, "This view only accepts POST request.")
@@ -709,18 +753,18 @@ def DIDOrderFrm_Results(request):
     
 
 # DELETE THIS FUNCTION!!
-def GetDID_OrderFormInfo(request):
-    if request.user.is_authenticated:
-        #change 'selected_values' to 'selected_states'
-        selected_values = request.POST.getlist('to[]')
+# def GetDID_OrderFormInfo(request):
+#     if request.user.is_authenticated:
+#         #change 'selected_values' to 'selected_states'
+#         selected_values = request.POST.getlist('to[]')
         
-        return render(request, 'getSelState_Counts.html', {'selected_values':selected_values})
-    else:
-        messages.success(request, "Must be logged in...")
-        return redirect('home')
+#         return render(request, 'getSelState_Counts.html', {'selected_values':selected_values})
+#     else:
+#         messages.success(request, "Must be logged in...")
+#         return redirect('home')
 
 
-#
+# Read Carrier Order form and load records to database tables
 def Load_DID_Order(request):
     if request.user.is_authenticated:
         if request.method == 'POST' and request.FILES['excel_file']:
@@ -732,6 +776,7 @@ def Load_DID_Order(request):
             # Store 'filename' within a stored session data
             request.session['PseudoAddFileName'] = filename
             try:
+                print("Start load of carrier order form:", datetime.now())
                 # Load Carrier Excel Order Form into Pandas DataFrame
                 excel_file = request.FILES['excel_file']
                 df = pd.read_excel(excel_file, usecols=['DID', 'State', 'PseudoCID', 'LeadID'])
@@ -752,8 +797,19 @@ def Load_DID_Order(request):
                 if len(LeadF_ID) > 0:
                     DID_OrderInfo = []
                     for LF_ID in LeadF_ID:
+                        print("Start - load records with LeadID:", LF_ID, datetime.now())
                         # Retrieve NewOrderList & NewOrderListData by LeadFileID
                         order_list = NewOrderList.objects.filter(LeadFileID=LF_ID)
+                        if len(order_list) > 0:
+                            print("LeadFile Data found in carrier order form")
+                            print(order_list)
+                        else:
+                            messages.error(request, 'LeadFile ID NOT found in carrier order form: ', LF_ID)
+                            return redirect('home')
+                            
+                            # print("LeadFile Data NOT found in carrier order form")
+                            # print("LeadFile ID Not found: ", LF_ID)
+                            
                         order_list_data = NewOrderListData.objects.filter(order_list__LeadFileID=LF_ID)
                         if len(order_list) > 0 and len(order_list_data) > 0:
                             for info in order_list:
@@ -833,13 +889,19 @@ def Load_DID_Order(request):
                         else:
                             messages.error(request, 'New Order Form Info NOT found for this Order...')
                             return redirect('home')
+                    print("Finish - load records:", datetime.now())
                 else:
                     messages.error(request, 'No LeadFile ID data found in carrier order form')
                     return redirect('home')
+
+                print("Finish load of carrier order form:", datetime.now())
                 
-                # Create process on creating PseudoCID file to upload to Randy's website
-                return render(request, 'Create_AddPseudoFile.html', {'DID_OrderInfo':DID_OrderInfo})
-            
+                # Save DID_OrderInfo to session storage
+                request.session['DID_OrderInfo'] = DID_OrderInfo
+
+                # Send JSON response with redirect URL
+                return JsonResponse({'redirect_url': reverse('Create_AddPseudoFile')})
+
             except Exception as e: 
                 messages.error(request, f'Error while uploading data: {str(e)}')                
                 return redirect('home')
@@ -858,31 +920,32 @@ def Load_DID_Order(request):
 # Create PseudoCID "ADD" file to upload to Randy's website
 def Create_Add_PseudoFile(request):
     if request.user.is_authenticated:
-        if request.method == 'POST':
-            # use this for testing Archive process rather than `curetime` or use 30 days back from current date
-            # Make sure to update other lines of code that use `curetime` with `purgedate`
-            # purgedate = datetime(2023, 5, 30)
+        if request.method == 'GET':
             curetime = datetime.now()            
             # Retrieve 'PseudoAddFileName' within stored session data
             PseudoAdd_FileName = request.session.get('PseudoAddFileName')
-            # Create a response object with appropriate CSV headers
-            response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = f'attachment; filename="{PseudoAdd_FileName}"'
             
-            # Create CSV writer using the response object
-            writer = csv.writer(response)
+            # Define a file path to save to server
+            file_path = os.path.join(settings.MEDIA_ROOT, 'tmpADD', PseudoAdd_FileName)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-            # Write the headers to the CSV file
-            writer.writerow(['pseudocid', 'cidnumber', 'cname', 'trixnumber', 'action'])
+            # Open the file and write the CSV data
+            with open(file_path, 'w', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow(['pseudocid', 'cidnumber', 'cname', 'trixnumber', 'action'])
+            
+                # Fetch data in `PseudoFile` to write to CSV file
+                PseudoFile_info = PseudoFile.objects.filter(FileName=PseudoAdd_FileName)
+                PseudoFile_PseudoCIDs = PseudoFile_info.values('PseudoCID').distinct()
+                PseudoFile_info.update(Deact_Date = curetime.strftime("%Y-%m-%d"))
+                PseudoFile_info.update(OkToArchive = "Y")
 
-            PseudoFile_info = PseudoFile.objects.filter(FileName=PseudoAdd_FileName)
-            PseudoFile_PseudoCIDs = PseudoFile_info.values('PseudoCID').distinct()
-            PseudoFile_info.update(Deact_Date = curetime.strftime("%Y-%m-%d"))
-            PseudoFile_info.update(OkToArchive = "Y")
+                # Write records to PseudoCID CSV file
+                for record in PseudoFile_info:
+                    writer.writerow([record.PseudoCID, record.PhoneNo, record.Client_Code, record.InBnd_TranNo, record.Action])                
 
-            # Write records to PseudoCID csv file
-            for record in PseudoFile_info:
-                writer.writerow([record.PseudoCID, record.PhoneNo, record.Client_Code, record.InBnd_TranNo, record.Action])                
+            # Save the file path in the session for later retrieval
+            request.session['download_file_path'] = file_path
 
             # Archive PseudoFile Records older than 30 days
             PseudoFile_Archive = PseudoFile.objects.filter(Deact_Date__lt=datetime.now() - timedelta(days=30), OkToArchive="Y")
@@ -901,8 +964,9 @@ def Create_Add_PseudoFile(request):
                 ClientList.objects.filter(PseudoCID=pseudo_cid).update(Status='Active')
                 ClientListData.objects.filter(PseudoCID=pseudo_cid).update(Status='Active')                
  
-            messages.success(request, "PseudoCID 'ADD' File has been created & downloaded - Check local PC 'downloads' folder")            
-            return response
+             # Redirect to the results view
+            return redirect('create_add_pseudo_file_results')
+
         else:
             messages.error(request, "Invalid request method.")
             return redirect('home')
@@ -910,6 +974,28 @@ def Create_Add_PseudoFile(request):
         messages.success(request, "Must be logged in...")
         return redirect('home')
 
+#
+def create_add_pseudo_file_results(request):
+    # Retrieve the saved file path and DID_OrderInfo
+    DID_OrderInfo = request.session.get('DID_OrderInfo', [])    
+    file_path = request.session.get('download_file_path')
+    file_name = os.path.basename(file_path) if file_path else ''
+
+    # Render the template with the download button
+    return render(request, 'Create_AddPseudoFile.html', {
+        'DID_OrderInfo': DID_OrderInfo,
+        'file_name': file_name
+    })
+
+
+#
+def download_file(request, file_name):
+    file_path = os.path.join(settings.MEDIA_ROOT, 'tmpADD', file_name)
+
+    # Open the file for reading and return it as a response
+    response = FileResponse(open(file_path, 'rb'), as_attachment=True, filename=file_name)
+    return response
+    
 
 # Display list of PseudoCIDs with MPI Client names to select for deletion
 def delete_pseudoCID(request):
@@ -919,6 +1005,19 @@ def delete_pseudoCID(request):
     else:
         messages.success(request, "You Must Be Logged In To View Records...")
         return redirect('home')
+
+
+# 
+def cleanup_and_finish(request, file_name):
+    # Construct the file path
+    file_path = os.path.join(settings.MEDIA_ROOT, 'tmpADD', file_name)
+
+    # Check if the file exists and delete it
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    messages.success(request, f"PseudoCID 'ADD' File: ~ {file_name} ~ has been created & downloaded - Check local PC 'downloads' folder")            
+    return redirect('home')    
 
 
 # Display list of selected Client names with PseudoCIDs to confirm deletion
@@ -1279,7 +1378,9 @@ def Export_PseudoCID(request):
                             client_list.InBnd_TranNo,
                             client_list.Carrier
                         ])
-            
+
+            # Use this example to include file name that was downloaded
+            #messages.success(request, f"Date Usage for {client.PseudoCID} has been updated.")            
             messages.success(request, "PseudoCID records downloaded to CSV format - Check local PC 'downloads' folder")
             return response
         else:
@@ -1323,55 +1424,66 @@ def Restore_PseudoCID(request):
             # Get selected PseudoCIDs
             for value in selected_pseudoCIDs:
                 # Use regular expression to extract PseudoCID, Client_Description, and Deact_Date
-                match = re.match(r'(\S+) (.+?) (\w+\. \d+, \d+)', value)
-                
+                # to filter records by in `ClientListArchive`
+                # - (\d+) captures one or more digits, matching the PseudoCID.
+                # - (.+?) non-greedy match, captures the client description up until it reaches a pattern that looks like a date.
+                # - (\w+ \d+, \d{4}) captures the date, expecting the month as a word, followed by a day and a comma-separated year.
+                match = re.match(r'(\d+) (.+?) (\w+ \d+, \d{4})', value)
                 if match:
+                    # Parse data into individual variables
                     pseudoCID, client_description, deact_date_str = match.groups()
-                    deact_date = datetime.strptime(deact_date_str, '%b. %d, %Y').date()
+                    try:
+                        # Format variable `deact_date_str`
+                        deact_date = datetime.strptime(deact_date_str, '%B %d, %Y').date()   
+                        # Filter data in `ClientListArchive` by selected PseudoCIDs 
+                        archived_data_queryset = ClientListArchive.objects.filter(PseudoCID=pseudoCID, Status="In-Active", Deact_Date=deact_date)
 
-                    archived_data_queryset = ClientListArchive.objects.filter(PseudoCID=pseudoCID, Status="In-Active", Deact_Date=deact_date)
-                    
-                    if archived_data_queryset:
-                        for archived_data in archived_data_queryset:
-                            # Restore to ClientList model
-                            client_list_obj, created = ClientList.objects.get_or_create(
-                                PseudoCID=archived_data.PseudoCID,
-                                defaults={
-                                    'Client_Description': archived_data.Client_Description,
-                                    'Client_Code': archived_data.Client_Code,
-                                    'PubCode': archived_data.PubCode,
-                                    'Sales_Type': archived_data.Sales_Type,
-                                    'VoiceMail': archived_data.VoiceMail,
-                                    'InBnd_TranNo': archived_data.InBnd_TranNo,
-                                    'Carrier': archived_data.Carrier,
-                                    'Status': 'Active',
-                                    'PR_Date': archived_data.PR_Date,
-                                    'LastUse_Date': archived_data.LastUse_Date,
-                                    'DID_CNT': archived_data.DID_CNT,
-                                    'Notes': archived_data.Notes
-                                }
-                            )
+                        if archived_data_queryset:
+                            for archived_data in archived_data_queryset:
+                                # Restore to ClientList model
+                                client_list_obj, created = ClientList.objects.get_or_create(
+                                    PseudoCID=archived_data.PseudoCID,
+                                    defaults={
+                                        'Client_Description': archived_data.Client_Description,
+                                        'Client_Code': archived_data.Client_Code,
+                                        'PubCode': archived_data.PubCode,
+                                        'Sales_Type': archived_data.Sales_Type,
+                                        'VoiceMail': archived_data.VoiceMail,
+                                        'InBnd_TranNo': archived_data.InBnd_TranNo,
+                                        'Carrier': archived_data.Carrier,
+                                        'Status': 'Active',
+                                        'PR_Date': archived_data.PR_Date,
+                                        'LastUse_Date': archived_data.LastUse_Date,
+                                        'DID_CNT': archived_data.DID_CNT,
+                                        'Notes': archived_data.Notes
+                                    }
+                                )
 
-                            # Restore to ClientListData model
-                            client_list_data_obj, created = ClientListData.objects.get_or_create(
-                                PseudoCID=client_list_obj,
-                                PhoneNo=archived_data.PhoneNo,
-                                PhnNo_Loc=archived_data.PhnNo_Loc,
-                                Status='Active',
-                                LeadFileID=archived_data.LeadFileID,
-                                Deact_Date=archived_data.Deact_Date
-                            )
+                                # Restore to ClientListData model
+                                client_list_data_obj, created = ClientListData.objects.get_or_create(
+                                    PseudoCID=client_list_obj,
+                                    PhoneNo=archived_data.PhoneNo,
+                                    PhnNo_Loc=archived_data.PhnNo_Loc,
+                                    Status='Active',
+                                    LeadFileID=archived_data.LeadFileID,
+                                    Deact_Date=archived_data.Deact_Date
+                                )
 
-                            # Update DID_CNT field in ClientList model
-                            client_list_obj.update_did_cnt()
+                                # Update DID_CNT field in ClientList model
+                                client_list_obj.update_did_cnt()
 
-                            # Remove the record from ClientListArchive
-                            archived_data.delete()
+                                # Remove the record from ClientListArchive
+                                archived_data.delete()
 
-                            # Filter and update records in `MPIPseudoCIDs` to status = 'A' - Active
-                            record_update = MPIPseudoCIDs.objects.filter(PseudoCID=pseudoCID)
-                            if record_update.exists():
-                                record_update.update(Status='A')   
+                                # Filter and update records in `MPIPseudoCIDs` to status = 'A' - Active
+                                record_update = MPIPseudoCIDs.objects.filter(PseudoCID=pseudoCID)
+                                if record_update.exists():
+                                    record_update.update(Status='A')   
+                                    
+                    except ValueError as e:
+                        messages.error(request, f"Error in attempting to parse data: {e}")
+                        return redirect('home')
+                        
                 else:
                     messages.success(request, "No matches found on parsed data from selected PseudoCIDs...")
                     return redirect('home')
